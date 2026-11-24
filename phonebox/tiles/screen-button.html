@@ -1,0 +1,42 @@
+<style>
+  body { height: 100vh; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2.5vh; cursor: pointer;
+         -webkit-tap-highlight-color: transparent; user-select: none; -webkit-user-select: none; }
+  .ico { width: 30vh; height: 30vh; transition: transform .25s cubic-bezier(.2, .8, .2, 1); }
+  .ico rect, .ico path { fill: none; stroke: #fff; stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; }
+  .scan { stroke-opacity: .5; animation: scan 3.2s ease-in-out infinite; transform-box: fill-box; }
+  .t { font-size: 8.5vh; font-weight: 500; color: #fff; }
+  .s { font-size: 6vh; color: #8c8c8c; }
+  body:active .ico { transform: scale(.92); }
+  .mini { display: block; overflow: visible; }
+  .mini .mln { fill: #0b0b0b; stroke: #fff; stroke-width: 2; stroke-linejoin: round; }
+  .mini .mst { fill: none; stroke: #fff; stroke-width: 1.6; stroke-linecap: round; }
+  .meyes { transform-box: fill-box; transform-origin: center; animation: mblink 5.5s infinite; }
+  @keyframes mblink { 0%, 94%, 100% { transform: scaleY(1) } 96% { transform: scaleY(.08) } }
+  .say { position: relative; border: 1.4px solid #fff; border-radius: 14px; background: #000; color: #fff; line-height: 1.35; }
+  .say::after { content: ""; position: absolute; right: -6px; top: 50%; width: 9px; height: 9px; margin-top: -4.5px; background: #000;
+                border-right: 1.4px solid #fff; border-top: 1.4px solid #fff; transform: rotate(45deg); }
+  .peek { position: absolute; right: 3%; bottom: 0; display: flex; align-items: flex-end; gap: 2%; pointer-events: none; }
+  .peek .mini { height: 36vh; width: auto; margin-bottom: -10vh; animation: peek 4s ease-in-out infinite; }
+  .peek .say { font-size: 4.6vh; padding: 1.2vh 4vh; margin-bottom: 8vh; white-space: nowrap; }
+  body { position: relative; box-sizing: border-box; padding-bottom: 22vh; }
+  @keyframes peek { 0%, 100% { transform: translateY(0) } 50% { transform: translateY(-4%) } }
+  @keyframes scan { 0%, 100% { transform: translateY(0); opacity: .2 } 50% { transform: translateY(7px); opacity: .8 } }
+  @media (prefers-reduced-motion: reduce) { .scan { animation: none } }
+</style>
+<svg class="ico" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="12" rx="2"/><path d="M8 20h8M12 16v4"/><path class="scan" d="M6 7.5h12"/></svg>
+<div class="t">Экран ноутбука <span style="font-family:'Noto Sans CJK JP', 'Noto Sans JP', sans-serif;color:#6a6a6a;font-weight:400">画面</span></div>
+<div class="s">смотреть и управлять</div>
+<div class="peek"><div class="say">Не сломай ничего!</div><svg class="mini" viewBox="0 0 100 92" aria-hidden="true">
+<path class="mln" d="M10 60 C6 26 28 8 50 8 C72 8 94 26 90 60 L93 90 L7 90 Z"/>
+<ellipse class="mln" cx="50" cy="56" rx="34" ry="31"/>
+<path class="mln" d="M17 54 C16 24 33 14 50 14 C67 14 84 24 83 54 C80 45 76 42 72 43 C70 36 66 33 61 35 C58 29 53 27 50 31 C46 27 41 29 39 35 C34 33 29 36 28 42 C23 41 19 46 17 54 Z"/>
+<g transform="translate(17 27) scale(.62)"><path fill="#fff" d="M0 0 C-11 -13 -24 -6 -17 7 C-12 13 -4 7 0 0 Z M0 0 C11 -13 24 -6 17 7 C12 13 4 7 0 0 Z"/><circle r="3.8" fill="#0b0b0b" stroke="#fff" stroke-width="1.6"/></g>
+<g transform="translate(83 27) scale(.62)"><path fill="#fff" d="M0 0 C-11 -13 -24 -6 -17 7 C-12 13 -4 7 0 0 Z M0 0 C11 -13 24 -6 17 7 C12 13 4 7 0 0 Z"/><circle r="3.8" fill="#0b0b0b" stroke="#fff" stroke-width="1.6"/></g>
+<g class="meyes"><ellipse fill="#fff" cx="38" cy="60" rx="7.5" ry="9"/><ellipse fill="#fff" cx="62" cy="60" rx="7.5" ry="9"/>
+<ellipse fill="#0b0b0b" cx="38.6" cy="61.5" rx="5.6" ry="7.2"/><ellipse fill="#0b0b0b" cx="61.4" cy="61.5" rx="5.6" ry="7.2"/>
+<circle fill="#fff" cx="36.2" cy="58.6" r="2.3"/><circle fill="#fff" cx="59" cy="58.6" r="2.3"/></g>
+<path class="mst" style="stroke-width:2.4" d="M29.5 56 Q38 47 46.5 55 M53.5 55 Q62 47 70.5 56"/>
+<path class="mst" style="stroke-width:1.1;stroke-opacity:.8" d="M24 72 l3 -3 M28 73 l3 -3 M32 74 l3 -3 M66 74 l3 -3 M70 73 l3 -3 M74 72 l3 -3"/>
+<path class="mst" d="M46 76 Q50 73.5 54 76"/><path fill="#fff" d="M51.6 75 L52.6 77.4 L53.6 75.2 Z"/>
+</svg></div>
+<script>document.body.addEventListener('click', function () { phonebox.goto('screen'); });</script>

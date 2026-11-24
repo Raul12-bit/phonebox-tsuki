@@ -1,0 +1,73 @@
+<style>
+  :root { --fg: #fff; --mut: #8a8a8a; --line: #ffffff26; }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; background: transparent; color: var(--fg); overflow: hidden; }
+  body { font-family: Roboto, system-ui, sans-serif; user-select: none; -webkit-user-select: none; -webkit-tap-highlight-color: transparent;
+         display: flex; flex-direction: column; padding: 4.5vh 3.2vw 4vh; gap: 3vh; }
+  .head { display: flex; align-items: baseline; gap: .8em; font-size: 7vh; letter-spacing: .18em; font-weight: 700; color: #cfcfcf; }
+  .head .jp { font-family: "Noto Sans CJK JP", "Noto Sans JP", sans-serif; font-weight: 400; color: #5f5f5f; letter-spacing: .1em; }
+  .head .sp { flex: 1; }
+  .head .hint { font-size: 6vh; font-weight: 500; letter-spacing: .04em; color: var(--mut); }
+  .row { flex: 1; display: flex; align-items: center; justify-content: space-around; min-height: 0; }
+  .sep { width: 1px; align-self: stretch; margin: 4vh 0; background: var(--line); }
+  .k { position: relative; border: 0; background: none; color: inherit; padding: 0; display: flex; flex-direction: column; align-items: center; gap: 2.6vh;
+       font: 600 6.4vh Roboto, system-ui, sans-serif; letter-spacing: .02em; touch-action: none; }
+  .ring { position: relative; width: 46vh; height: 46vh; max-width: 19vw; max-height: 19vw; border-radius: 50%; border: 1.5px solid var(--line);
+          background: #0b0b0b; display: grid; place-items: center; transition: transform .12s ease, background-color .12s ease; }
+  .ring svg.i { width: 42%; height: 42%; fill: none; stroke: currentColor; stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; }
+  .ring svg.p { position: absolute; inset: -1.5px; width: calc(100% + 3px); height: calc(100% + 3px); transform: rotate(-90deg); pointer-events: none; }
+  /* hidden at rest: a round cap on a zero-length dash still draws a dot at the top of the ring */
+  .ring svg.p circle { fill: none; stroke: #fff; stroke-width: 3; stroke-linecap: round; stroke-dasharray: 100; stroke-dashoffset: 100; opacity: 0; }
+  .k.hold.holding svg.p circle { opacity: 1; }
+  .k.press .ring { transform: scale(.93); background: #1a1a1a; }
+  .k.tap.press .ring { background: #fff; color: #000; }
+  .k.hold.holding svg.p circle { stroke-dashoffset: 0; transition: stroke-dashoffset 1.1s linear; }
+  .k.done .ring { background: #fff; color: #000; border-color: #fff; }
+  .k .l { color: #d9d9d9; } .k .s { display: block; font-size: 5vh; font-weight: 400; color: #6f6f6f; margin-top: .4vh; text-align: center; }
+  .toast { position: absolute; left: 50%; bottom: 4vh; transform: translateX(-50%); padding: 1.6vh 3vh; border-radius: 99px; background: #fff; color: #000;
+           font: 700 6vh Roboto, sans-serif; letter-spacing: .04em; opacity: 0; pointer-events: none; transition: opacity .2s ease; white-space: nowrap; }
+  .toast.on { opacity: 1; }
+  @media (prefers-reduced-motion: reduce) { .ring, .toast { transition: none } .k.hold.holding svg.p circle { transition-duration: .01s } }
+</style>
+<div class="head"><span>ПИТАНИЕ</span><span class="jp">電源</span><span class="sp"></span><span class="hint">сон, перезапуск и выключение — удерживай</span></div>
+<div class="row">
+  <button class="k tap" data-run="pw-lock" data-done="Заблокирован" aria-label="Заблокировать"><span class="ring"><svg class="i" viewBox="0 0 24 24"><rect x="5" y="10.5" width="14" height="10" rx="2.5"/><path d="M8.5 10.5V8a3.5 3.5 0 0 1 7 0v2.5"/></svg></span><span class="l">Блок<span class="s">тап</span></span></button>
+  <button class="k tap" data-run="pw-monitor" data-done="Экран выключен" aria-label="Выключить экран"><span class="ring"><svg class="i" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="12" rx="2"/><path d="M8 20h8M12 16v4M9 8.5l6 5M15 8.5l-6 5"/></svg></span><span class="l">Экран<span class="s">тап</span></span></button>
+  <span class="sep"></span>
+  <button class="k hold" data-run="pw-sleep" data-done="Засыпает…" aria-label="Сон, удерживать"><span class="ring"><svg class="p" viewBox="0 0 36 36"><circle cx="18" cy="18" r="16" pathLength="100"/></svg><svg class="i" viewBox="0 0 24 24"><path d="M20 14.5A8 8 0 0 1 9.5 4a8 8 0 1 0 10.5 10.5z"/></svg></span><span class="l">Сон<span class="s">удерживай</span></span></button>
+  <button class="k hold" data-run="pw-restart" data-done="Перезагрузка…" aria-label="Перезагрузка, удерживать"><span class="ring"><svg class="p" viewBox="0 0 36 36"><circle cx="18" cy="18" r="16" pathLength="100"/></svg><svg class="i" viewBox="0 0 24 24"><path d="M20 12a8 8 0 1 1-2.4-5.7L20 8.5"/><path d="M20 4v4.5h-4.5"/></svg></span><span class="l">Рестарт<span class="s">удерживай</span></span></button>
+  <button class="k hold" data-run="pw-shutdown" data-done="Выключается…" aria-label="Выключение, удерживать"><span class="ring"><svg class="p" viewBox="0 0 36 36"><circle cx="18" cy="18" r="16" pathLength="100"/></svg><svg class="i" viewBox="0 0 24 24"><path d="M12 3.5v8"/><path d="M7 6.5a7.5 7.5 0 1 0 10 0"/></svg></span><span class="l">Выкл.<span class="s">удерживай</span></span></button>
+</div>
+<div class="toast" id="toast"></div>
+<script>
+  // Laptop power, as PhoneBox shortcuts (pw-* in apply.py). Lock and screen-off run on a tap. Sleep, restart and
+  // shutdown run only after the finger stays down for 1.1 s: a ring fills while you hold, and letting go early cancels.
+  // Nothing animates at rest; the ring transition only runs during a hold.
+  var HOLD = 1100, toastEl = document.getElementById('toast'), toastT = null;
+  function buzz(ms) { try { navigator.vibrate && navigator.vibrate(ms); } catch (e) {} }
+  function toast(t) { toastEl.textContent = t; toastEl.classList.add('on'); clearTimeout(toastT); toastT = setTimeout(function () { toastEl.classList.remove('on'); }, 1800); }
+  function fire(b) {
+    try { phonebox.run(b.dataset.run); } catch (e) { toast('Нет связи с ноутбуком'); return; }
+    buzz(40); b.classList.add('done'); toast(b.dataset.done);
+    setTimeout(function () { b.classList.remove('done'); }, 1400);
+  }
+  Array.prototype.forEach.call(document.querySelectorAll('.k'), function (b) {
+    var timer = null, armed = false;
+    function cancel() { clearTimeout(timer); timer = null; b.classList.remove('press', 'holding'); }
+    b.addEventListener('pointerdown', function (e) {
+      try { b.setPointerCapture(e.pointerId); } catch (_) {}
+      b.classList.add('press'); armed = true;
+      if (b.classList.contains('hold')) {
+        void b.offsetWidth; b.classList.add('holding'); buzz(8);
+        timer = setTimeout(function () { timer = null; armed = false; b.classList.remove('press', 'holding'); fire(b); }, HOLD);
+      }
+    });
+    b.addEventListener('pointerup', function () {
+      var wasHold = b.classList.contains('hold'), pending = timer !== null;
+      cancel();
+      if (!armed) return; armed = false;
+      if (!wasHold) fire(b); else if (pending) toast('Удерживай дольше');
+    });
+    b.addEventListener('pointercancel', function () { armed = false; cancel(); });
+  });
+</script>

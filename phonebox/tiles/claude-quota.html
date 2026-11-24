@@ -1,0 +1,104 @@
+<style>
+  :root { --fg: #fff; --mut: #8c8c8c; --track: #1c1c1c; }
+  body { box-sizing: border-box; height: 100vh; padding: 4.5vh 6% 4vh; display: flex; flex-direction: column; -webkit-font-smoothing: antialiased; }
+  header { display: flex; align-items: center; gap: .7em; font-size: 4.2vh; }
+  header b { font-weight: 600; letter-spacing: .02em; }
+  .plan { font-size: .8em; padding: .15em .6em; border: 1px solid #3a3a3a; border-radius: 99px; color: #d6d6d6; }
+  .upd { margin-left: auto; font-size: .8em; color: var(--mut); }
+  .rings { flex: 1; display: grid; grid-template-columns: 1fr 1fr; gap: 6%; align-items: center; min-height: 0; }
+  .q { display: flex; flex-direction: column; align-items: center; min-width: 0; opacity: 0; animation: in .7s cubic-bezier(.2, .8, .2, 1) forwards; }
+  .q + .q { animation-delay: .08s; }
+  .ring { position: relative; width: min(100%, 40vh); aspect-ratio: 1; }
+  .ring svg { width: 100%; height: 100%; transform: rotate(-90deg); overflow: visible; }
+  circle { fill: none; stroke-width: 7; }
+  .tr { stroke: var(--track); }
+  .fg { stroke: var(--fg); stroke-linecap: round; transition: stroke-dashoffset 1.1s cubic-bezier(.2, .8, .2, 1); }
+  .pace { stroke: #fff; stroke-width: 2; stroke-opacity: .55; transition: transform 1.1s cubic-bezier(.2, .8, .2, 1); transform-origin: 50px 50px; }
+  .pct { position: absolute; inset: 0; display: grid; place-items: center; font-size: 10vh; font-weight: 300; font-variant-numeric: tabular-nums; }
+  .pct small { font-size: .4em; color: var(--mut); }
+  .name { margin-top: 2.6vh; font-size: 3.8vh; font-weight: 600; text-align: center; }
+  .sub { margin-top: .8vh; font-size: 3.2vh; color: var(--mut); text-align: center; line-height: 1.45; max-width: 100%; }
+  .err { flex: 1; display: grid; place-items: center; text-align: center; color: var(--mut); font-size: 3.6vh; padding: 0 8%; }
+  .mini { display: block; overflow: visible; }
+  .mini .mln { fill: #0b0b0b; stroke: #fff; stroke-width: 2; stroke-linejoin: round; }
+  .mini .mst { fill: none; stroke: #fff; stroke-width: 1.6; stroke-linecap: round; }
+  .meyes { transform-box: fill-box; transform-origin: center; animation: mblink 5.5s infinite; }
+  @keyframes mblink { 0%, 94%, 100% { transform: scaleY(1) } 96% { transform: scaleY(.08) } }
+  .say { position: relative; border: 1.4px solid #fff; border-radius: 14px; background: #000; color: #fff; line-height: 1.35; }
+  .say::after { content: ""; position: absolute; right: -6px; top: 50%; width: 9px; height: 9px; margin-top: -4.5px; background: #000;
+                border-right: 1.4px solid #fff; border-top: 1.4px solid #fff; transform: rotate(45deg); }
+  .tsuki { display: flex; align-items: center; justify-content: flex-end; gap: 3%; margin-top: 1.5vh; }
+  .tsuki .say { font-size: 3.1vh; padding: 1.2vh 3.5%; max-width: 72%; }
+  .tsuki .mini { height: 13vh; width: auto; }
+  @keyframes in { from { opacity: 0; transform: scale(.96) } to { opacity: 1; transform: none } }
+  @media (prefers-reduced-motion: reduce) { .q { animation: none; opacity: 1 } .fg, .pace { transition: none } }
+</style>
+<header><b>Claude</b><span style="font-family:'Noto Sans CJK JP', 'Noto Sans JP', sans-serif;color:#5f5f5f;font-size:.85em">残量</span><span class="plan" id="plan">—</span><span class="upd" id="upd"></span></header>
+<div class="rings" id="rings"></div>
+<div class="tsuki"><div class="say" id="tsay">…</div><svg class="mini" viewBox="0 0 100 92" aria-hidden="true">
+<path class="mln" d="M10 60 C6 26 28 8 50 8 C72 8 94 26 90 60 L93 90 L7 90 Z"/>
+<ellipse class="mln" cx="50" cy="56" rx="34" ry="31"/>
+<path class="mln" d="M17 54 C16 24 33 14 50 14 C67 14 84 24 83 54 C80 45 76 42 72 43 C70 36 66 33 61 35 C58 29 53 27 50 31 C46 27 41 29 39 35 C34 33 29 36 28 42 C23 41 19 46 17 54 Z"/>
+<g transform="translate(17 27) scale(.62)"><path fill="#fff" d="M0 0 C-11 -13 -24 -6 -17 7 C-12 13 -4 7 0 0 Z M0 0 C11 -13 24 -6 17 7 C12 13 4 7 0 0 Z"/><circle r="3.8" fill="#0b0b0b" stroke="#fff" stroke-width="1.6"/></g>
+<g transform="translate(83 27) scale(.62)"><path fill="#fff" d="M0 0 C-11 -13 -24 -6 -17 7 C-12 13 -4 7 0 0 Z M0 0 C11 -13 24 -6 17 7 C12 13 4 7 0 0 Z"/><circle r="3.8" fill="#0b0b0b" stroke="#fff" stroke-width="1.6"/></g>
+<g class="meyes"><ellipse fill="#fff" cx="38" cy="60" rx="7.5" ry="9"/><ellipse fill="#fff" cx="62" cy="60" rx="7.5" ry="9"/>
+<ellipse fill="#0b0b0b" cx="38.6" cy="61.5" rx="5.6" ry="7.2"/><ellipse fill="#0b0b0b" cx="61.4" cy="61.5" rx="5.6" ry="7.2"/>
+<circle fill="#fff" cx="36.2" cy="58.6" r="2.3"/><circle fill="#fff" cx="59" cy="58.6" r="2.3"/></g>
+<path class="mst" style="stroke-width:2.4" d="M29.5 56 Q38 47 46.5 55 M53.5 55 Q62 47 70.5 56"/>
+<path class="mst" style="stroke-width:1.1;stroke-opacity:.8" d="M24 72 l3 -3 M28 73 l3 -3 M32 74 l3 -3 M66 74 l3 -3 M70 73 l3 -3 M74 72 l3 -3"/>
+<path class="mst" d="M46 76 Q50 73.5 54 76"/><path fill="#fff" d="M51.6 75 L52.6 77.4 L53.6 75.2 Z"/>
+</svg></div>
+<script>
+  // Black-and-white Claude usage: one ring per limit (5-hour window, weekly). The thin tick on each ring is where
+  // usage would be if it were spread evenly over the window; the line under it forecasts whether it will last.
+  var C = 2 * Math.PI * 44, data = null, built = {};
+  var rings = document.getElementById('rings'), plan = document.getElementById('plan'), upd = document.getElementById('upd');
+  var NAMES = { '5-hour session': '5-часовое окно', 'Weekly': 'Неделя', 'Weekly (Opus)': 'Неделя · Opus', 'Weekly (Sonnet)': 'Неделя · Sonnet' };
+  function dur(ms) {
+    if (ms <= 0) return 'сейчас';
+    var m = Math.round(ms / 60000), d = Math.floor(m / 1440), h = Math.floor(m % 1440 / 60), mm = m % 60;
+    return d ? d + ' д ' + h + ' ч' : h ? h + ' ч ' + mm + ' мин' : mm + ' мин';
+  }
+  function card(key) {
+    if (built[key]) return built[key];
+    var q = document.createElement('div'); q.className = 'q';
+    q.innerHTML = '<div class="ring"><svg viewBox="0 0 100 100"><circle class="tr" cx="50" cy="50" r="44"/>' +
+      '<circle class="fg" cx="50" cy="50" r="44" stroke-dasharray="' + C.toFixed(1) + '" stroke-dashoffset="' + C.toFixed(1) + '"/>' +
+      '<line class="pace" x1="94" y1="50" x2="100" y2="50"/></svg><div class="pct"></div></div><div class="name"></div><div class="sub"></div>';
+    rings.appendChild(q);
+    return (built[key] = { fg: q.querySelector('.fg'), pace: q.querySelector('.pace'), pct: q.querySelector('.pct'), name: q.querySelector('.name'), sub: q.querySelector('.sub') });
+  }
+  function render() {
+    var p = data && (data.providers || []).filter(function (x) { return x.id === 'claude'; })[0];
+    if (!p) return;
+    plan.textContent = p.plan || 'Claude';
+    if (p.error && !(p.limits || []).length) { rings.className = 'err'; rings.textContent = 'Нет данных: ' + p.error; built = {}; return; }
+    rings.className = 'rings';
+    var now = Date.now();
+    upd.textContent = p.updatedAt ? 'обновлено ' + dur(now - p.updatedAt).replace('сейчас', 'только что') + (now - p.updatedAt > 60000 ? ' назад' : '') : '';
+    (p.limits || []).slice(0, 2).forEach(function (l) {
+      var c = card(l.label), pct = Math.max(0, Math.min(100, l.percent || 0));
+      c.fg.style.strokeDashoffset = (C * (1 - pct / 100)).toFixed(1);
+      c.pct.innerHTML = '<span>' + Math.round(pct) + '<small>%</small></span>';
+      c.name.textContent = NAMES[l.label] || l.label;
+      var left = l.resetsAt ? l.resetsAt - now : null, sub = left != null ? 'сброс через ' + dur(left) : '';
+      if (l.windowSec && left != null) {
+        var elapsed = Math.max(1, l.windowSec * 1000 - left), expected = Math.min(100, elapsed / (l.windowSec * 1000) * 100);
+        c.pace.style.transform = 'rotate(' + (expected * 3.6).toFixed(1) + 'deg)';
+        var rate = pct / elapsed, endsIn = rate > 0 ? (100 - pct) / rate : Infinity;
+        sub += '<br>' + (endsIn < left ? 'в этом темпе кончится через ' + dur(endsIn) : pct <= expected ? 'идёт по плану' : 'хватит до сброса');
+      }
+      c.sub.innerHTML = sub;
+    });
+  }
+  var tsay = document.getElementById('tsay');
+  function tsukiLine() {
+    var p = data && (data.providers || []).filter(function (x) { return x.id === 'claude'; })[0], l = p && (p.limits || [])[0];
+    if (!l) { tsay.textContent = 'Нет данных… это не я сломала!'; return; }
+    var v = l.percent || 0;
+    tsay.textContent = v >= 85 ? 'Почти всё потратил! Береги лимит, бака!' : v >= 60 ? 'Больше половины… Следи за темпом. Я слежу!'
+      : v >= 30 ? 'Нормально идёшь. Н-не то чтобы я хвалила.' : 'Почти полный. Работай спокойно… я разрешаю.';
+  }
+  phonebox.on('quotas', function (q) { data = q; render(); tsukiLine(); });
+  setInterval(render, 30000);  // only the countdown text changes between updates
+</script>

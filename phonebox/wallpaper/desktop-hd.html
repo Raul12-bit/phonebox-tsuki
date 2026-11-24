@@ -1,0 +1,99 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><title>Tsuki wallpaper — manga page</title>
+<style>html, body { margin: 0; background: #000; } svg { display: block; width: 1920px; height: 1080px; }</style></head>
+<body><div id="out"></div>
+<script src="detail.js"></script>
+<script>
+  // 1920 x 1080 "manga page": a big panel with the detailed Tsuki and three slanted side panels with chibi moods.
+  D.reseed(42);
+  var W = 1920, H = 1080, s = [];
+  function poly(pts) { return pts.map(function (p) { return p.join(' '); }).join(' '); }
+  function panel(id, pts, body) {
+    return '<clipPath id="' + id + '"><polygon points="' + poly(pts) + '"/></clipPath>' +
+      '<g clip-path="url(#' + id + ')"><polygon points="' + poly(pts) + '" fill="#000"/>' + body + '</g>' +
+      '<polygon points="' + poly(pts) + '" fill="none" stroke="#fff" stroke-width="3.2" stroke-linejoin="round"/>';
+  }
+  function bubble(x, y, w, h, tx, ty, jp, ru, jpSize) {  // rounded bubble with a tail towards (tx, ty)
+    var cx = x + w / 2, cy = y + h / 2, ang = Math.atan2(ty - cy, tx - cx), bx = cx + Math.cos(ang) * w * .32, by = cy + Math.sin(ang) * h * .32;
+    var px = -Math.sin(ang) * 16, py = Math.cos(ang) * 16;
+    return '<path fill="#000" stroke="#fff" stroke-width="3" stroke-linejoin="round" d="M' + (bx + px) + ' ' + (by + py) + ' L' + tx + ' ' + ty + ' L' + (bx - px) + ' ' + (by - py) + ' Z"/>' +
+      '<rect x="' + x + '" y="' + y + '" width="' + w + '" height="' + h + '" rx="' + Math.min(h / 2, 46) + '" fill="#000" stroke="#fff" stroke-width="3"/>' +
+      '<text x="' + cx + '" y="' + (cy + (ru ? -2 : jpSize * .35)) + '" text-anchor="middle" font-size="' + jpSize + '" font-weight="700" fill="#fff">' + jp + '</text>' +
+      (ru ? '<text x="' + cx + '" y="' + (cy + jpSize * .78) + '" text-anchor="middle" font-size="' + (jpSize * .5) + '" fill="#a0a0a0">' + ru + '</text>' : '');
+  }
+  function shout(cx, cy, rx, ry, spikes, jp, ru, size) {  // spiky "shout" bubble
+    var d = '';
+    for (var i = 0; i < spikes * 2; i++) {
+      var a = i / (spikes * 2) * Math.PI * 2, k = i % 2 ? 1 : 1.22 + D.rnd() * .12;
+      d += (i ? 'L' : 'M') + (cx + Math.cos(a) * rx * k).toFixed(1) + ' ' + (cy + Math.sin(a) * ry * k).toFixed(1) + ' ';
+    }
+    return '<path fill="#000" stroke="#fff" stroke-width="3" stroke-linejoin="round" d="' + d + 'Z"/>' +
+      '<text x="' + cx + '" y="' + (cy + 4) + '" text-anchor="middle" font-size="' + size + '" font-weight="900" fill="#fff">' + jp + '</text>' +
+      '<text x="' + cx + '" y="' + (cy + size * .82) + '" text-anchor="middle" font-size="' + (size * .45) + '" fill="#a0a0a0">' + ru + '</text>';
+  }
+  function sfx(x, y, size, rot, text, op) {
+    return '<text x="' + x + '" y="' + y + '" font-size="' + size + '" font-weight="900" fill="#0b0b0b" stroke="#fff" stroke-width="' + (size / 30).toFixed(1) + '" stroke-linejoin="round" opacity="' + (op || 1) + '" transform="rotate(' + rot + ' ' + x + ' ' + y + ')">' + text + '</text>';
+  }
+
+  s.push('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ' + W + ' ' + H + '" width="' + W + '" height="' + H + '">' + D.defs);
+  s.push('<rect width="100%" height="100%" fill="#000"/>');
+  s.push('<rect width="100%" height="100%" fill="url(#toneS)" opacity=".08"/>');
+
+  // ---- panel 1: angry chibi, focus lines, shout bubble
+  s.push(panel('p1', [[30, 30], [690, 30], [690, 318], [30, 346]],
+    D.focus(250, 190, 120, 700, 120, .16) +
+    '<g transform="translate(118 72) scale(2.5)">' + D.chibi('angry') + '</g>' +
+    shout(548, 132, 108, 56, 11, 'べ、別に！', 'Н-ничего!', 38) +
+    sfx(500, 292, 74, -8, 'ムッ!')));
+
+  // ---- panel 2: shy chibi, hearts, petals, soft tone
+  s.push(panel('p2', [[30, 362], [690, 334], [690, 676], [30, 690]],
+    '<rect x="30" y="330" width="660" height="360" fill="url(#tone)" opacity=".16"/>' +
+    '<circle cx="520" cy="520" r="190" fill="url(#toneD)" opacity=".35"/><circle cx="520" cy="520" r="150" fill="#000"/>' +
+    D.stars(40, 350, 680, 680, 14, .35, .8) + D.petals(40, 350, 680, 680, 9, .9, 1.6) +
+    '<g transform="translate(395 392) scale(2.5)">' + D.chibi('shy') + '</g>' +
+    D.heart(372, 418, 1.5, false, -14) + D.heart(338, 462, .9, true, -8) + D.heart(648, 400, 1.1, false, 12) +
+    sfx(70, 470, 78, -10, 'ドキッ') +
+    bubble(70, 528, 268, 104, 392, 600, '…ありがと', '…спасибо. Т-только раз!', 36)));
+
+  // ---- panel 3: caption box (white, manga narration) + sleepy chibi
+  s.push(panel('p3', [[30, 706], [690, 692], [690, 1050], [30, 1050]],
+    D.stars(40, 700, 680, 1040, 22, .3, .7) + D.petals(40, 700, 680, 1040, 6, .8, 1.3) +
+    '<rect x="62" y="742" width="420" height="250" fill="#fff"/><rect x="70" y="750" width="404" height="234" fill="none" stroke="#0b0b0b" stroke-width="1.5"/>' +
+    '<text x="92" y="802" font-size="31" font-weight="900" fill="#0b0b0b">べ、別にあなたの</text>' +
+    '<text x="92" y="846" font-size="31" font-weight="900" fill="#0b0b0b">ためじゃないんだからね！</text>' +
+    '<text x="92" y="892" font-size="21" fill="#333">Н-не то чтобы я это для тебя</text>' +
+    '<text x="92" y="920" font-size="21" fill="#333">сделала, бака!</text>' +
+    '<text x="92" y="966" font-size="17" letter-spacing="6" fill="#555">月 · TSUKI · ツキ · ЦУКИ</text>' +
+    '<g transform="translate(488 838) scale(2.05)">' + D.chibi('sleep') + '</g>' +
+    '<text x="520" y="812" font-size="30" font-weight="700" fill="#fff" transform="rotate(-8 520 812)">すやすや</text>' +
+    '<text x="650" y="768" font-size="22" font-weight="700" fill="#fff" opacity=".8">z</text><text x="668" y="744" font-size="28" font-weight="700" fill="#fff" opacity=".6">Z</text>'));
+
+  // ---- main panel: the moon, clouds, stars, focus lines, detailed Tsuki, bubbles, SFX
+  var main = '';
+  main += D.stars(710, 30, 1890, 760, 70, .35, 1.1);
+  main += D.focus(1330, 470, 540, 1500, 170, .055);
+  main += D.moon(1610, 300, 270);
+  main += D.cloud(1380, 560, 520, 70, 6) + D.cloud(720, 690, 330, 54, 4);
+  main += D.petals(720, 60, 1880, 1040, 18, 1.1, 2.2);  // behind her
+  main += '<g transform="translate(910 24) scale(3.9)">' + D.girl() + '</g>';
+  main += D.cloud(690, 1062, 560, 92, 7) + D.cloud(1460, 1070, 470, 84, 6);
+  main += D.petals(720, 300, 900, 1000, 5, 1.6, 2.6) + D.petals(1720, 560, 1880, 1000, 4, 1.6, 2.6);  // a few in front, away from her face
+  main += D.heart(1060, 300, 1.8, false, -12) + D.heart(1030, 350, 1.1, true, -6) + D.heart(1600, 700, 1.3, false, 14);
+  main += bubble(760, 110, 330, 132, 1040, 300, '…バカ。', '…бака.', 52);
+  // vertical (tategaki) bubble over the moon: columns read right to left
+  main += '<ellipse cx="1782" cy="262" rx="86" ry="176" fill="#000" stroke="#fff" stroke-width="3"/>' +
+    '<path fill="#000" stroke="#fff" stroke-width="3" stroke-linejoin="round" d="M1716 360 L1640 420 L1740 392 Z"/><path d="M1712 352 L1744 388" stroke="#000" stroke-width="6"/>' +
+    '<text x="1826" y="150" font-size="34" font-weight="700" fill="#fff" writing-mode="tb" glyph-orientation-vertical="0">べつに、</text>' +
+    '<text x="1782" y="150" font-size="34" font-weight="700" fill="#fff" writing-mode="tb" glyph-orientation-vertical="0">まって</text>' +
+    '<text x="1738" y="150" font-size="34" font-weight="700" fill="#fff" writing-mode="tb" glyph-orientation-vertical="0">ないし…</text>';
+  main += sfx(748, 900, 118, -12, 'ドキッ') + sfx(770, 600, 50, -6, 'ドキドキ', .9);
+  main += '<text x="1868" y="1034" text-anchor="end" font-size="18" letter-spacing="5" fill="#8a8a8a">ツキ 第1話 · TSUKI vol.01</text>';
+  s.push(panel('pm', [[706, 30], [1890, 30], [1890, 1050], [706, 1050]], main));
+
+  // petals drifting across the gutters (on top of everything), page frame
+  s.push(D.petals(600, 260, 820, 980, 7, 1.2, 2));
+  s.push('<rect x="14" y="14" width="' + (W - 28) + '" height="' + (H - 28) + '" fill="none" stroke="#fff" stroke-opacity=".18" stroke-width="1.5"/>');
+  s.push('</svg>');
+  document.getElementById('out').innerHTML = s.join('');
+</script></body></html>

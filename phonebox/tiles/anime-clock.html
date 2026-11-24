@@ -1,0 +1,95 @@
+<style>
+  :root { --fg: #fff; --mut: #8c8c8c; }
+  body { position: relative; height: 100vh; box-sizing: border-box; padding: 6vh 7% 5vh; overflow: hidden; display: flex; flex-direction: column;
+         -webkit-font-smoothing: antialiased; }
+  /* manga screentone: a dot grid that fades out towards the top-left */
+  .tone { position: absolute; inset: 0; pointer-events: none;
+          background: radial-gradient(circle, #ffffff26 1.1px, transparent 1.4px) 0 0 / 7px 7px;
+          -webkit-mask-image: radial-gradient(120% 100% at 100% 100%, #000 0%, transparent 62%); mask-image: radial-gradient(120% 100% at 100% 100%, #000 0%, transparent 62%); }
+  .kanji { position: absolute; right: -2%; bottom: -14%; font-size: 70vh; font-weight: 900; line-height: 1; color: transparent;
+           -webkit-text-stroke: 1.5px #ffffff22; pointer-events: none; font-family: "Noto Sans CJK JP", "Noto Sans JP", sans-serif; }
+  .tag { position: relative; display: flex; align-items: center; gap: .6em; font-size: 3.6vh; letter-spacing: .2em; color: var(--mut); }
+  .tag b { color: #fff; font-weight: 600; letter-spacing: .1em; padding: .1em .5em; border: 1px solid #ffffff55; border-radius: 4px; }
+  .time { position: relative; margin-top: 2vh; display: flex; align-items: flex-start; font-size: 30vh; font-weight: 200; line-height: .95;
+          font-variant-numeric: tabular-nums; letter-spacing: -.02em; }
+  .colon { margin: 0 .02em; } .colon.dim { opacity: .25; }
+  .sec { font-size: .2em; font-weight: 400; color: var(--mut); margin: .45em 0 0 .35em; letter-spacing: 0; }
+  .date { position: relative; margin-top: 1.8vh; font-size: 5.2vh; color: #e6e6e6; }
+  .date span { color: var(--mut); margin-left: .5em; font-size: .85em; }
+  .wx { position: relative; margin-top: auto; display: flex; align-items: center; gap: 4%; }
+  .wx svg { width: 11vh; height: 11vh; flex: none; }
+  .wx svg * { fill: none; stroke: #fff; stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; }
+  .t { font-size: 10vh; font-weight: 300; }
+  .d { font-size: 3.9vh; line-height: 1.5; color: var(--mut); }
+  .d b { color: #fff; font-weight: 500; }
+  .claude { position: absolute; right: 7%; top: 6vh; font-size: 3.4vh; color: var(--mut); }
+  .claude b { color: #fff; font-weight: 500; }
+  .claude { top: auto !important; bottom: 5vh; }
+  .d { max-width: 52%; }
+  .sleep { position: absolute; right: 5%; top: 4.5vh; display: flex; align-items: center; gap: .5em; padding: 1.2vh 2.6vh; border: 1.4px solid #ffffff66;
+           border-radius: 99px; background: #000; color: #fff; font-size: 3.4vh; letter-spacing: .06em; cursor: pointer; -webkit-tap-highlight-color: transparent; }
+  .sleep:active { transform: scale(.94); background: #111; }
+  .sleep svg { width: 3.6vh; height: 3.6vh; } .sleep path { fill: none; stroke: #fff; stroke-width: 1.8; stroke-linejoin: round; }
+  body > * { animation: in .7s cubic-bezier(.2, .8, .2, 1) both; }
+  .time { animation-delay: .05s } .date { animation-delay: .1s } .wx { animation-delay: .15s }
+  @keyframes in { from { opacity: 0; transform: translateY(8px) } to { opacity: 1; transform: none } }
+  @keyframes tick { 50% { opacity: .25 } }
+  @media (prefers-reduced-motion: reduce) { body > * { animation: none } }
+</style>
+<div class="tone"></div>
+<div class="kanji" id="kanji">月</div>
+<div class="tag"><b>今日</b>СЕГОДНЯ</div>
+<div class="claude" id="claude"></div>
+<div class="time"><span id="hh">--</span><span class="colon">:</span><span id="mm">--</span><span class="sec" id="ss"></span></div>
+<div class="date" id="date"></div>
+<div class="wx" id="wx"></div>
+<div class="sleep" id="sleep"><svg viewBox="0 0 24 24"><path d="M19 14.5A7.5 7.5 0 0 1 9.5 5a7.5 7.5 0 1 0 9.5 9.5z"/></svg><span class="jp" style="font-family:'Noto Sans CJK JP','Noto Sans JP',sans-serif">おやすみ</span></div>
+<script>
+  // Manga-style clock: time, Russian + Japanese date, weather (Open-Meteo from the panel), Claude usage.
+  // Only text changes once a second; the screentone and the big kanji are static.
+  var WD = ['日', '月', '火', '水', '木', '金', '土'];
+  var RU = ['воскресенье', 'понедельник', 'вторник', 'среда', 'четверг', 'пятница', 'суббота'];
+  var MON = ['января', 'февраля', 'марта', 'апреля', 'мая', 'июня', 'июля', 'августа', 'сентября', 'октября', 'ноября', 'декабря'];
+  var ICON = {
+    sun: '<circle cx="12" cy="12" r="4"/><path d="M12 2.5v2M12 19.5v2M2.5 12h2M19.5 12h2M5.3 5.3l1.4 1.4M17.3 17.3l1.4 1.4M5.3 18.7l1.4-1.4M17.3 6.7l1.4-1.4"/>',
+    moon: '<path d="M19 14.5A7.5 7.5 0 0 1 9.5 5a7.5 7.5 0 1 0 9.5 9.5z"/>',
+    cloud: '<path d="M7 18h10a4 4 0 0 0 .6-7.95A6 6 0 0 0 6.1 10.5 3.75 3.75 0 0 0 7 18z"/>',
+    rain: '<path d="M7 15h10a4 4 0 0 0 .6-7.95A6 6 0 0 0 6.1 7.5 3.75 3.75 0 0 0 7 15z"/><path d="M9 18l-1 2.5M13 18l-1 2.5M17 18l-1 2.5"/>',
+    snow: '<path d="M7 15h10a4 4 0 0 0 .6-7.95A6 6 0 0 0 6.1 7.5 3.75 3.75 0 0 0 7 15z"/><path d="M9 19h.01M12 21h.01M15 19h.01"/>',
+    storm: '<path d="M7 15h10a4 4 0 0 0 .6-7.95A6 6 0 0 0 6.1 7.5 3.75 3.75 0 0 0 7 15z"/><path d="M12.5 15.5l-2 3h3l-2 3"/>',
+    fog: '<path d="M4 9h16M6 13h12M4 17h16"/>'
+  };
+  function wmo(c, day) {
+    if (c === 0) return [day ? 'sun' : 'moon', 'Ясно', '晴れ'];
+    if (c <= 2) return ['cloud', 'Малооблачно', '晴れ時々曇り'];
+    if (c === 3) return ['cloud', 'Пасмурно', 'くもり'];
+    if (c === 45 || c === 48) return ['fog', 'Туман', '霧'];
+    if (c >= 51 && c <= 57) return ['rain', 'Морось', '霧雨'];
+    if ((c >= 61 && c <= 67) || (c >= 80 && c <= 82)) return ['rain', c >= 80 ? 'Ливень' : 'Дождь', '雨'];
+    if ((c >= 71 && c <= 77) || c === 85 || c === 86) return ['snow', 'Снег', '雪'];
+    if (c >= 95) return ['storm', 'Гроза', '雷'];
+    return ['cloud', '—', ''];
+  }
+  var el = function (id) { return document.getElementById(id); };
+  function pad(n) { return n < 10 ? '0' + n : '' + n; }
+  function tick() {
+    var d = new Date();
+    el('hh').textContent = pad(d.getHours()); el('mm').textContent = pad(d.getMinutes()); el('ss').textContent = pad(d.getSeconds());
+    document.querySelectorAll('.colon').forEach(function (c) { c.classList.toggle('dim', d.getSeconds() % 2 === 1); }); // blinks with the second tick: no extra frames
+    el('date').innerHTML = RU[d.getDay()] + ', ' + d.getDate() + ' ' + MON[d.getMonth()] + '<span>' + WD[d.getDay()] + '曜日</span>';
+    if (el('kanji').textContent !== WD[d.getDay()]) el('kanji').textContent = WD[d.getDay()];
+  }
+  phonebox.on('weather', function (w) {
+    if (!w || !w.current) { el('wx').innerHTML = '<div class="d">Погода недоступна</div>'; return; }
+    var c = w.current, k = wmo(c.weather_code, c.is_day !== 0), dl = w.daily || {};
+    var hi = dl.temperature_2m_max && dl.temperature_2m_max[0], lo = dl.temperature_2m_min && dl.temperature_2m_min[0];
+    el('wx').innerHTML = '<svg viewBox="0 0 24 24">' + ICON[k[0]] + '</svg><div class="t">' + Math.round(c.temperature_2m) + '°</div>' +
+      '<div class="d"><b>' + k[1] + '</b> · ' + k[2] + ' · Алматы<br>↑' + Math.round(hi) + '° ↓' + Math.round(lo) + '° · ощущается ' + Math.round(c.apparent_temperature) + '°</div>';
+  });
+  phonebox.on('quotas', function (q) {
+    var p = q && (q.providers || []).filter(function (x) { return x.id === 'claude'; })[0], l = p && (p.limits || [])[0];
+    el('claude').innerHTML = l ? 'Claude <b>' + Math.round(l.percent) + '%</b>' : '';
+  });
+  el('sleep').addEventListener('click', function () { phonebox.goto('night'); });  // night mode on demand
+  tick(); setInterval(tick, 1000);
+</script>

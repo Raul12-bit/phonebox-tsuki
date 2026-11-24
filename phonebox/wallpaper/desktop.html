@@ -1,0 +1,44 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><title>Tsuki wallpaper — desktop</title>
+<style>html, body { margin: 0; background: #000; } svg { display: block; width: 1920px; height: 1080px; }
+  text { font-family: "Yu Gothic UI", "Yu Gothic", Meiryo, "Noto Sans JP", sans-serif; }</style></head>
+<body><div id="out"></div>
+<script src="tsuki.js"></script>
+<script>
+  // 1920 x 1080 desktop: Tsuki on the right in front of the crescent moon, quiet left side for desktop icons.
+  var T = TSUKI, W = 1920, H = 1080, s = [];
+  s.push('<svg xmlns="' + T.NS + '" viewBox="0 0 ' + W + ' ' + H + '" width="' + W + '" height="' + H + '">' + T.defs);
+  s.push('<rect width="100%" height="100%" fill="#000"/>');
+  // screentone washes: bottom-right corner and a soft band top-left
+  s.push('<radialGradient id="fadeA" cx="100%" cy="100%" r="70%"><stop offset="0" stop-color="#fff" stop-opacity=".55"/><stop offset="1" stop-color="#fff" stop-opacity="0"/></radialGradient>' +
+         '<mask id="mA"><rect width="100%" height="100%" fill="url(#fadeA)"/></mask><rect width="100%" height="100%" fill="url(#toneS)" mask="url(#mA)" opacity=".5"/>');
+  // focus lines behind her
+  s.push(T.focus(1420, 560, 430, 1500, 150, .07));
+  // the moon (月 = tsuki)
+  s.push(T.moon(1500, 330, 250, 'moon'));
+  // stars
+  [[1180, 140, 1.6], [1260, 260, 1], [1790, 600, 1.4], [1730, 170, .9], [1080, 520, 1.1], [1860, 860, .9], [980, 230, .7], [1700, 980, .8]]
+    .forEach(function (p) { s.push(T.star(p[0], p[1], p[2], .9)); });
+  // Tsuki
+  s.push('<g transform="translate(1080 205) scale(3.5)">' + T.girl + '</g>');
+  // speech bubble: "…baka."
+  s.push('<g transform="translate(860 300)"><rect x="0" y="0" width="300" height="104" rx="34" fill="#000" stroke="#fff" stroke-width="3"/>' +
+         '<path d="M262 100 L300 140 L236 102 Z" fill="#000" stroke="#fff" stroke-width="3" stroke-linejoin="round"/><rect x="234" y="96" width="34" height="8" fill="#000"/>' +
+         '<text x="150" y="50" text-anchor="middle" font-size="40" fill="#fff" font-weight="700">…バカ。</text>' +
+         '<text x="150" y="84" text-anchor="middle" font-size="22" fill="#9a9a9a">…бака.</text></g>');
+  s.push(T.heart(1205, 470, 1.6, false) + T.heart(1240, 440, 1, true));
+  // SFX
+  s.push('<text x="1600" y="215" font-size="92" font-weight="900" fill="#000" stroke="#fff" stroke-width="3" transform="rotate(14 1600 215)">ドキッ</text>');
+  // left: huge outlined ツキ, the tsundere line and a small signature
+  s.push('<text x="70" y="1000" font-size="430" font-weight="900" fill="none" stroke="#fff" stroke-opacity=".09" stroke-width="2">ツキ</text>');
+  s.push('<g transform="translate(110 820)"><rect x="0" y="-38" width="64" height="40" rx="6" fill="none" stroke="#fff" stroke-opacity=".7" stroke-width="2"/>' +
+         '<text x="32" y="-8" text-anchor="middle" font-size="26" fill="#fff" font-weight="700">月</text>' +
+         '<text x="84" y="-8" font-size="22" letter-spacing="8" fill="#9a9a9a">TSUKI · ツキ · ЦУКИ</text>' +
+         '<text x="0" y="56" font-size="44" fill="#fff" font-weight="700">べ、別にあなたのためじゃないんだからね！</text>' +
+         '<text x="0" y="100" font-size="28" fill="#9a9a9a">Н-не то чтобы я это для тебя сделала, бака!</text></g>');
+  // manga page frame
+  s.push('<rect x="24" y="24" width="' + (W - 48) + '" height="' + (H - 48) + '" fill="none" stroke="#fff" stroke-opacity=".22" stroke-width="2"/>' +
+         '<rect x="34" y="34" width="' + (W - 68) + '" height="' + (H - 68) + '" fill="none" stroke="#fff" stroke-opacity=".1" stroke-width="1"/>');
+  s.push('</svg>');
+  document.getElementById('out').innerHTML = s.join('');
+</script></body></html>

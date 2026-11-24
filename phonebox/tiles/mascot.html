@@ -1,0 +1,271 @@
+<style>
+  :root { --ink: #0b0b0b; --mut: #8c8c8c; }
+  html, body { background: transparent; }
+  body { position: relative; height: 100vh; overflow: hidden; display: flex; flex-direction: column; align-items: center;
+         -webkit-tap-highlight-color: transparent; user-select: none; -webkit-user-select: none; touch-action: none;
+         font-family: Roboto, system-ui, sans-serif; }
+  .jp { font-family: "Noto Sans CJK JP", "Noto Sans JP", sans-serif; }
+  /* manga layers */
+  .tone { position: absolute; inset: 0; pointer-events: none; background: radial-gradient(circle, #ffffff22 1.1px, transparent 1.4px) 0 0 / 7px 7px;
+          -webkit-mask-image: linear-gradient(to top, #000, transparent 60%); mask-image: linear-gradient(to top, #000, transparent 60%); }
+  .speed { position: absolute; inset: -10%; pointer-events: none; opacity: 0; transition: opacity .35s;
+           background: repeating-conic-gradient(from 0deg at 50% 58%, #fff0 0deg 4.2deg, #ffffff2a 4.2deg 5deg);
+           -webkit-mask-image: radial-gradient(circle at 50% 58%, transparent 30%, #000 72%); mask-image: radial-gradient(circle at 50% 58%, transparent 30%, #000 72%); }
+  .glow { position: absolute; left: 50%; top: 58%; width: 80%; aspect-ratio: 1; transform: translate(-50%, -50%); border-radius: 50%; pointer-events: none;
+          background: radial-gradient(circle, #ffffff12, transparent 65%); opacity: 0; transition: opacity .6s; }
+  body.m-angry .speed { opacity: 1; }
+  body.m-shy .glow, body.m-happy .glow, body.m-pat .glow { opacity: 1; }
+  /* speech bubble */
+  .bubble { position: relative; z-index: 3; margin: 3.6vh 5% 0; align-self: stretch; min-height: 15.5vh; box-sizing: border-box; padding: 2.4vh 4.5% 2vh;
+            border: 1.6px solid #fff; border-radius: 20px; background: #000; font-size: 3.55vh; line-height: 1.42; color: #fff; transform-origin: 50% 100%; }
+  .bubble::after { content: ""; position: absolute; left: 50%; bottom: -8px; width: 13px; height: 13px; margin-left: -6.5px; background: #000;
+                   border-right: 1.6px solid #fff; border-bottom: 1.6px solid #fff; transform: rotate(45deg); }
+  .bubble.shout { border-width: 2.6px; border-radius: 9px; }
+  .bubble.soft { border-style: dashed; }
+  .bubble.pop { animation: pop .42s cubic-bezier(.3, 1.6, .5, 1); }
+  .who, .aff { position: absolute; top: -1.5vh; padding: 0 6px; background: #000; font-size: 2.3vh; letter-spacing: .16em; color: var(--mut); line-height: 3vh; }
+  .who { left: 14px; } .aff { right: 12px; display: flex; align-items: center; gap: 4px; letter-spacing: .05em; }
+  .aff svg { width: 2.5vh; height: 2.5vh; } .aff path { fill: none; stroke: #fff; stroke-width: 2.2; } .aff .f path { fill: #fff; } .aff .h path { fill: #ffffff66; }
+  .aff.bump { animation: bump .5s cubic-bezier(.3, 1.6, .5, 1); }
+  /* stage + character */
+  .stage { position: relative; z-index: 1; flex: 1; width: 100%; min-height: 0; display: flex; align-items: flex-end; justify-content: center; }
+  svg.girl { height: 100%; max-width: 100%; overflow: visible; animation: breathe 4.2s ease-in-out infinite; }
+  svg.girl.hop { animation: hop .45s cubic-bezier(.3, 1.6, .5, 1); }
+  svg.girl.shake { animation: shake .4s linear; }
+  .ln { fill: var(--ink); stroke: #fff; stroke-width: 2; stroke-linejoin: round; stroke-linecap: round; }
+  .st { fill: none; stroke: #fff; stroke-width: 2; stroke-linejoin: round; stroke-linecap: round; }
+  .wh { fill: #fff; } .ink { fill: var(--ink); }
+  .head { transform-origin: 100px 168px; transition: transform .5s cubic-bezier(.3, 1.4, .5, 1); }
+  .m-shy .head, .m-pat .head { transform: rotate(-6deg); } .m-smug .head { transform: rotate(5deg); } .m-sleep .head { transform: rotate(-9deg) translateY(3px); }
+  .tailL { transform-origin: 46px 80px; animation: swayL 3.8s ease-in-out infinite; }
+  .tailR { transform-origin: 154px 80px; animation: swayR 3.8s ease-in-out infinite; }
+  .ahoge { transform-origin: 104px 36px; animation: wig 2.6s ease-in-out infinite; }
+  .eyes-open { transform-box: fill-box; transform-origin: center; animation: blink 5s infinite; }
+  .browL, .browR { transition: transform .3s; transform-box: fill-box; }
+  .browL { transform-origin: right center; } .browR { transform-origin: left center; }
+  .m-angry .browL { transform: rotate(10deg) translateY(2px); } .m-angry .browR { transform: rotate(-10deg) translateY(2px); }
+  .m-shy .browL, .m-pat .browL, .m-surprised .browL { transform: rotate(-10deg) translateY(-3px); }
+  .m-shy .browR, .m-pat .browR, .m-surprised .browR { transform: rotate(10deg) translateY(-3px); }
+  .m-surprised .iris { transform: scale(.72); transform-box: fill-box; transform-origin: center; }
+  /* which parts each mood shows */
+  [data-m] { opacity: 0; transition: opacity .2s; }
+  .m-normal [data-m~=normal], .m-angry [data-m~=angry], .m-shy [data-m~=shy], .m-happy [data-m~=happy], .m-sleep [data-m~=sleep],
+  .m-smug [data-m~=smug], .m-surprised [data-m~=surprised], .m-pat [data-m~=pat] { opacity: 1; }
+  .zzz text { fill: #fff; font: 600 13px Roboto, sans-serif; animation: float 2.6s ease-in-out infinite; }
+  .zzz text:nth-child(2) { animation-delay: .9s } .zzz text:nth-child(3) { animation-delay: 1.8s }
+  .twk { animation: twinkle 2.2s ease-in-out infinite; transform-box: fill-box; transform-origin: center; }
+  .twk:nth-of-type(2) { animation-delay: .7s } .twk:nth-of-type(3) { animation-delay: 1.4s }
+  /* effects */
+  .sfx { position: absolute; z-index: 4; right: 4%; top: 25vh; font: 900 8.5vh "Noto Sans CJK JP", "Noto Sans JP", sans-serif; color: #000;
+         -webkit-text-stroke: 1.6px #fff; transform: rotate(12deg); opacity: 0; pointer-events: none; }
+  .sfx.left { right: auto; left: 4%; transform: rotate(-12deg); }
+  .sfx.show { animation: sfx 1.8s cubic-bezier(.2, .8, .2, 1) forwards; }
+  .heart { position: absolute; z-index: 4; width: 5vh; height: 5vh; pointer-events: none; animation: heartUp 1.5s ease-out forwards; }
+  .heart path { fill: #fff; }
+  @keyframes breathe { 0%, 100% { transform: translateY(0) } 50% { transform: translateY(-1.1%) } }
+  @keyframes hop { 0% { transform: translateY(0) } 40% { transform: translateY(-5%) } 100% { transform: translateY(0) } }
+  @keyframes shake { 0%, 100% { transform: translateX(0) } 20% { transform: translateX(-2%) } 40% { transform: translateX(2%) } 60% { transform: translateX(-1.5%) } 80% { transform: translateX(1.5%) } }
+  @keyframes swayL { 0%, 100% { transform: rotate(0) } 50% { transform: rotate(4deg) } }
+  @keyframes swayR { 0%, 100% { transform: rotate(0) } 50% { transform: rotate(-4deg) } }
+  @keyframes wig { 0%, 100% { transform: rotate(0) } 50% { transform: rotate(-9deg) } }
+  @keyframes blink { 0%, 93%, 100% { transform: scaleY(1) } 95.5% { transform: scaleY(.06) } }
+  @keyframes float { 0% { transform: translate(0, 0); opacity: 0 } 30% { opacity: 1 } 100% { transform: translate(8px, -18px); opacity: 0 } }
+  @keyframes twinkle { 0%, 100% { opacity: .15; transform: scale(.5) } 50% { opacity: 1; transform: scale(1) } }
+  @keyframes pop { 0% { transform: scale(.9); opacity: .4 } 100% { transform: scale(1); opacity: 1 } }
+  @keyframes bump { 0% { transform: scale(1) } 40% { transform: scale(1.3) } 100% { transform: scale(1) } }
+  @keyframes sfx { 0% { opacity: 0; scale: .5 } 14% { opacity: 1; scale: 1.15 } 24% { scale: 1 } 80% { opacity: 1 } 100% { opacity: 0 } }
+  @keyframes heartUp { 0% { transform: translate(0, 0) scale(.4); opacity: 0 } 15% { opacity: 1; transform: translate(0, -2vh) scale(1) } 100% { transform: translate(var(--dx), -26vh) scale(.8); opacity: 0 } }
+  @media (prefers-reduced-motion: reduce) { svg.girl, .tailL, .tailR, .ahoge, .eyes-open, .zzz text, .twk, .bubble.pop, .sfx.show, .heart { animation: none !important } }
+</style>
+<div class="tone"></div><div class="speed"></div><div class="glow"></div>
+<div class="sfx" id="sfx"></div>
+<div class="bubble" id="bubble"><span class="who"><span class="jp">ツキ</span> · ЦУКИ</span><span class="aff" id="aff"></span><span id="say">…</span></div>
+<div class="stage">
+<svg class="girl" id="girl" viewBox="0 0 200 250" aria-label="Цуки">
+  <!-- twin tails with curls -->
+  <g class="tailL"><path class="ln" d="M48 82 C22 98 14 140 22 178 C26 200 18 218 8 230 C30 228 40 212 40 190 C40 160 42 124 60 98 Z"/><path class="st" d="M8 230 C1 236 5 245 14 241"/></g>
+  <g class="tailR"><path class="ln" d="M152 82 C178 98 186 140 178 178 C174 200 182 218 192 230 C170 228 160 212 160 190 C160 160 158 124 140 98 Z"/><path class="st" d="M192 230 C199 236 195 245 186 241"/></g>
+  <!-- body: sailor uniform, arms crossed -->
+  <g>
+    <path class="ln" d="M92 160 L92 176 L108 176 L108 160 Z"/>
+    <path class="ln" d="M60 190 C64 177 136 177 140 190 L152 250 L48 250 Z"/>
+    <path class="wh" d="M70 182 L100 208 L130 182 L124 179 L100 199 L76 179 Z"/>
+    <path class="st" style="stroke:#0b0b0b;stroke-width:1.4" d="M77 186 L100 205 L123 186"/>
+    <path class="wh" d="M100 208 L89 202 L90 216 Z M100 208 L111 202 L110 216 Z"/><circle class="ink" cx="100" cy="208" r="3" stroke="#fff" stroke-width="1.4"/>
+    <rect class="ln" x="54" y="216" width="68" height="18" rx="9" transform="rotate(-7 88 225)"/>
+    <rect class="ln" x="78" y="216" width="68" height="18" rx="9" transform="rotate(7 112 225)"/>
+    <path class="st" d="M62 222 l4 -1 M134 222 l-4 -1" style="stroke-width:1.4"/>
+  </g>
+  <!-- head (tilts with mood) -->
+  <g class="head">
+    <path class="ln" d="M44 120 C38 60 70 34 100 34 C130 34 162 60 156 120 L160 176 C150 170 140 170 132 174 L128 150 L72 150 L68 174 C60 170 50 170 40 176 Z"/>
+    <ellipse class="ln" cx="100" cy="122" rx="52" ry="47"/>
+    <!-- side locks -->
+    <path class="ln" d="M50 110 C45 138 47 160 56 178 C58 158 59 136 62 118 Z"/><path class="ln" d="M150 110 C155 138 153 160 144 178 C142 158 141 136 138 118 Z"/>
+    <!-- soft bangs -->
+    <path class="ln" d="M46 118 C44 72 70 50 100 50 C130 50 156 72 154 118 C150 112 148 106 147 99 C145 107 141 112 136 115 C139 104 137 94 131 87 C129 97 124 105 117 109 C120 98 118 88 112 81 C108 91 104 97 99 101 C98 92 94 85 88 80 C84 89 82 98 83 108 C77 103 73 96 71 88 C65 95 62 104 63 114 C58 110 55 106 53 100 C51 107 48 112 46 118 Z"/>
+    <path class="st" style="stroke-width:1.1;stroke-opacity:.55" d="M100 56 C99 70 100 84 99 96 M88 60 C86 68 86 74 88 80 M112 60 C114 68 114 74 112 80 M72 70 C70 76 70 82 71 88 M128 70 C130 76 130 82 131 87"/>
+    <g class="ahoge"><path class="st" d="M102 36 C95 22 106 12 114 18 C107 18 103 23 105 35"/></g>
+    <!-- big ribbons -->
+    <g transform="translate(48 80)"><path class="wh" d="M0 0 C-11 -13 -24 -6 -17 7 C-12 13 -4 7 0 0 Z M0 0 C11 -13 24 -6 17 7 C12 13 4 7 0 0 Z"/><circle class="ink" r="3.8" stroke="#fff" stroke-width="1.6"/></g>
+    <g transform="translate(152 80)"><path class="wh" d="M0 0 C-11 -13 -24 -6 -17 7 C-12 13 -4 7 0 0 Z M0 0 C11 -13 24 -6 17 7 C12 13 4 7 0 0 Z"/><circle class="ink" r="3.8" stroke="#fff" stroke-width="1.6"/></g>
+    <!-- brows -->
+    <path class="st browL" style="stroke-width:2.4" d="M66 104 Q76 100 88 106"/><path class="st browR" style="stroke-width:2.4" d="M134 104 Q124 100 112 106"/>
+    <!-- open eyes: white sclera, dark iris, two highlights -->
+    <g class="eyes-open" data-m="normal angry happy surprised smug">
+      <ellipse class="wh" cx="79" cy="128" rx="11.5" ry="13.5"/><ellipse class="wh" cx="121" cy="128" rx="11.5" ry="13.5"/>
+      <g class="iris"><ellipse class="ink" cx="80" cy="130" rx="8.6" ry="11"/><ellipse cx="80" cy="131" rx="5.6" ry="7.4" fill="none" stroke="#fff" stroke-width=".8" stroke-opacity=".45"/>
+        <circle class="wh" cx="76.5" cy="126.5" r="3.4"/><circle class="wh" cx="83.5" cy="135" r="1.6"/></g>
+      <g class="iris"><ellipse class="ink" cx="120" cy="130" rx="8.6" ry="11"/><ellipse cx="120" cy="131" rx="5.6" ry="7.4" fill="none" stroke="#fff" stroke-width=".8" stroke-opacity=".45"/>
+        <circle class="wh" cx="116.5" cy="126.5" r="3.4"/><circle class="wh" cx="123.5" cy="135" r="1.6"/></g>
+      <path class="st" style="stroke-width:3.4" d="M66 122 Q79 108 92 120 M108 120 Q121 108 134 122"/>
+      <path class="st" style="stroke-width:2.2" d="M66 122 l-4 -3 M134 122 l4 -3"/>
+      <!-- smug half-lids -->
+      <path class="ink" data-m="smug" d="M66 129 Q79 125 92 129 L92 112 L66 112 Z M108 129 Q121 125 134 129 L134 112 L108 112 Z"/>
+      <path class="st" data-m="smug" style="stroke-width:2.6" d="M66 129 Q79 125 92 129 M108 129 Q121 125 134 129"/>
+    </g>
+    <!-- closed eyes: happy ^ ^ (shy / pat) and sleepy -->
+    <path class="st" data-m="shy pat" style="stroke-width:3" d="M68 130 Q79 118 90 130 M110 130 Q121 118 132 130"/>
+    <path class="st" data-m="sleep" style="stroke-width:2.6" d="M68 128 Q79 134 90 128 M110 128 Q121 134 132 128"/>
+    <!-- blush -->
+    <g style="opacity:.85"><ellipse cx="68" cy="146" rx="9" ry="4.5" fill="#fff" fill-opacity=".1"/><ellipse cx="132" cy="146" rx="9" ry="4.5" fill="#fff" fill-opacity=".1"/>
+      <path class="st" style="stroke-width:1.3" d="M62 148 l4 -4 M67 149 l4 -4 M72 150 l4 -4 M124 150 l4 -4 M129 149 l4 -4 M134 148 l4 -4"/></g>
+    <g data-m="shy pat"><ellipse cx="68" cy="146" rx="11" ry="6" fill="#fff" fill-opacity=".18"/><ellipse cx="132" cy="146" rx="11" ry="6" fill="#fff" fill-opacity=".18"/>
+      <path class="st" style="stroke-width:1.6" d="M60 150 l5 -6 M66 151 l5 -6 M72 152 l5 -6 M123 152 l5 -6 M129 151 l5 -6 M135 150 l5 -6"/></g>
+    <!-- mouths -->
+    <g data-m="normal"><path class="st" d="M94 154 Q100 150 106 154"/><path class="wh" d="M102.6 152.6 L104 156.2 L105.4 152.9 Z"/></g>
+    <g data-m="angry"><path class="ln" d="M91 151 Q100 163 109 151 Z"/><path class="wh" d="M103 151.5 L104.6 155.5 L106.2 152 Z"/></g>
+    <g data-m="happy shy pat"><path class="st" d="M93 152 Q100 160 107 152"/><path class="wh" d="M102.6 153.6 L104 156.8 L105.2 154 Z"/></g>
+    <path class="st" data-m="smug" d="M91 153 q4.5 4 9 0 q4.5 4 9 0"/>
+    <ellipse class="st" data-m="surprised" cx="100" cy="155" rx="3.4" ry="4.4"/>
+    <path class="st" data-m="sleep" d="M96 154 h8"/>
+    <!-- extras -->
+    <path class="st" data-m="angry" style="stroke-width:2.6" d="M152 54 l7 7 M159 54 l-7 7 M148 49 q5 5 0 10 M163 49 q-5 5 0 10"/>
+    <path class="ln" data-m="surprised smug" d="M148 96 C152 104 156 108 152 113 C148 117 142 113 144 107 C145 103 147 100 148 96 Z"/>
+    <g data-m="happy pat"><path class="wh twk" d="M34 70 l2.5 6 6 2.5 -6 2.5 -2.5 6 -2.5 -6 -6 -2.5 6 -2.5 Z"/><path class="wh twk" d="M170 60 l2 5 5 2 -5 2 -2 5 -2 -5 -5 -2 5 -2 Z"/><path class="wh twk" d="M160 140 l1.6 4 4 1.6 -4 1.6 -1.6 4 -1.6 -4 -4 -1.6 4 -1.6 Z"/></g>
+    <g class="zzz" data-m="sleep"><text x="146" y="58">z</text><text x="154" y="46">z</text><text x="162" y="34">Z</text></g>
+  </g>
+</svg>
+</div>
+<script>
+  // ツキ (Tsuki): an original tsundere mascot. Moods change her face; affection (好感度) grows with head pats
+  // (hold your finger on her) and slowly fades; the higher it is, the more "dere" her lines get.
+  // Only CSS transforms/opacity animate; the logic wakes up every 14 s or on a touch.
+  var girl = document.getElementById('girl'), say = document.getElementById('say'), bubble = document.getElementById('bubble');
+  var sfx = document.getElementById('sfx'), affEl = document.getElementById('aff');
+  var S = null, Q = null, last = '', typing = null, aff = 3, pokes = 0, pokeAt = 0, greeted = false, lastTouch = 0;
+  function r(a) { return a[Math.floor(Math.random() * a.length)]; }
+  function txt(x) { return typeof x === 'string' ? x : x[1]; }
+  function pick(a) { var c = a.filter(function (x) { return txt(x) !== last; }); return r(c.length ? c : a); }
+  var TSUN = [
+    'Хмф! Я тут не ради тебя. Просто делать нечего.', 'Н-не смотри на меня так! Лучше работай.',
+    'Б-бака! Я слежу за ноутбуком, а не за тобой!', 'Ладно, так и быть, помогу. Но только сегодня!',
+    'Если что-то сломаешь — я не виновата, понял?', 'Ты опять тут? …Ну и ладно. Не то чтобы я скучала.',
+    'Чего уставился? Пульт слева, бака.', 'Я не жду, пока ты что-то скажешь. Совсем не жду.',
+    'Это не я тебя ждала. Это ты пришёл. Запомни.', 'Хмф. Я самый полезный виджет здесь, если что.'];
+  var MID = [
+    'Ты сегодня неплохо держишься… для тебя.', 'Если устал — сделай перерыв. Это… просто совет!',
+    'Я тут подумала… нет, ничего. Забудь!', 'Не задерживайся допоздна. Мне-то всё равно, но всё же.',
+    'Ноутбук в порядке. Я проверила. Т-тебе не нужно благодарить!', 'Хорошо, что ты зашёл. В смысле — по делу же, да?'];
+  var DERE = [
+    'Т-ты… молодец сегодня. Я сказала это один раз, больше не повторю!', 'Мне… нравится, когда ты рядом. Ч-что?! Забудь!',
+    'Я всегда буду следить за твоим ноутбуком. Всегда. …Не делай такое лицо!', 'Если что — я тут. Не то чтобы ты мне был нужен… просто я тут.',
+    'Эй… не перетруждайся, ладно? Мне не всё равно. Немножко.', 'Ты лучший хозяин ноутбука. …Это я из вежливости!'];
+  var POKE = [['angry', 'Эй! Не тыкай в меня!'], ['surprised', 'Ч-что тебе надо?!'], ['angry', 'Ещё раз — и обижусь!'],
+    ['smug', 'Хмф. Привязался, да?'], ['surprised', 'Кья! Предупреждать надо!']];
+  var POKE_MANY = [['angry', 'ХВАТИТ ТЫКАТЬ! Я тебе не кнопка!'], ['angry', 'Всё. Обиделась. …На пять секунд.']];
+  var PAT = [['pat', 'Н-не гладь меня! …Ну ладно. Ещё чуть-чуть.'], ['pat', 'Я не кошка, бака! …Продолжай.'],
+    ['pat', 'Т-только потому что у тебя тёплые руки!'], ['pat', '…Ладно. Это было приятно. НЕМНОГО.']];
+  var PAT_DERE = [['pat', 'Хи-хи… то есть ХМФ! Не смей рассказывать об этом.'], ['pat', 'Ещё… пожалуйста? …Я этого не говорила!'],
+    ['happy', 'Ты меня балуешь. …Мне нравится.']];
+  function greet(h) {
+    if (h >= 5 && h < 11) return ['shy', pick(['Утро! Н-не то чтобы я ждала, пока ты проснёшься…', 'Доброе утро. Завтракал? …Просто спросила!'])];
+    if (h >= 11 && h < 17) return ['smug', pick(['День в разгаре. Работаем, бака!', 'О, явился. Ну, давай, удиви меня.'])];
+    if (h >= 17 && h < 22) return ['normal', pick(['Добрый вечер. Устал? …Я не беспокоюсь, просто так.', 'Вечер. Можно и музыку включить, кстати.'])];
+    return ['sleep', 'Ночь же… Иди спать, бака. Я тоже… не устала совсем.'];
+  }
+  function context() {
+    var out = [], h = new Date().getHours(), day = new Date().getDay();
+    var pc = S && S.pc, cpu = pc && pc.cpu, ram = pc && pc.ramTotalGb ? pc.ramUsedGb / pc.ramTotalGb * 100 : null;
+    var gt = pc && pc.gpu && pc.gpu.temp, ping = S && S.ping && S.ping.ms, media = S && S.media, down = pc && pc.netDownBps;
+    var cl = Q && (Q.providers || []).filter(function (p) { return p.id === 'claude'; })[0], lim = cl && (cl.limits || [])[0];
+    if (cpu > 80) out.push(['angry', 'Процессор на ' + Math.round(cpu) + '%! Ты что, решил его поджарить?!']);
+    if (gt > 80) out.push(['angry', 'Видеокарта ' + Math.round(gt) + '°C! Горячо… как мои щёки. В смысле, НЕТ!']);
+    if (ram > 90) out.push([r(['angry', 'smug']), r(['Память ' + Math.round(ram) + '%! Опять сто вкладок открыл? Закрой лишнее, бака!',
+      'Память ' + Math.round(ram) + '%. Firefox опять всё съел, да? Хмф.', 'Ноутбук задыхается, ' + Math.round(ram) + '% памяти! Пожалей его!'])]);
+    if (lim && lim.percent >= 80) out.push(['angry', 'Лимит Claude уже ' + Math.round(lim.percent) + '%! Береги его, глупый!']);
+    if (ping > 200) out.push(['surprised', 'Интернет тормозит, ' + Math.round(ping) + ' мс. Это не я виновата!']);
+    if (out.length && Math.random() < .75) return out;
+    if (h < 5) return [['sleep', 'Zzz… н-не смотри, как я сплю!'], ['sleep', 'Уже ' + h + ' ночи… Ложись спать. Пожалуйста.']];
+    if (down > 5 * 1048576) out.push(['surprised', 'Что ты там качаешь на ' + (down / 1048576).toFixed(0) + ' МБ/с?! …Мне не интересно. Совсем.']);
+    if (media && media.playing && media.title) out.push([r(['shy', 'happy']), r(['«' + media.title + '»? …Ну, неплохо. Для тебя.', 'Опять «' + media.title + '»… Ладно, мне тоже нравится. ЧУТЬ-ЧУТЬ.'])]);
+    if (lim && lim.percent < 30) out.push(['smug', 'Claude почти полон. Можешь работать… я разрешаю.']);
+    if (pc && pc.uptimeSec > 2 * 86400) out.push(['normal', 'Ноутбук не выключался ' + Math.floor(pc.uptimeSec / 86400) + ' дня. Ему тоже нужен отдых… как и тебе.']);
+    if (day === 0 || day === 6) out.push(['happy', 'Выходной! Может, отдохнёшь? …Я не предлагаю провести его со мной!']);
+    if (h >= 22) out.push(['normal', 'Уже поздно. Не засиживайся… я не беспокоюсь, просто так сказала!']);
+    var pool = aff >= 8 ? DERE : aff >= 4 ? MID.concat(TSUN.slice(0, 4)) : TSUN;
+    pool.forEach(function (t) { out.push([aff >= 8 ? r(['shy', 'happy']) : r(['normal', 'normal', 'smug']), t]); });
+    return out;
+  }
+  var SFX = { angry: ['ムッ!', 'もう!', 'バカ!'], shy: ['ドキッ', 'きゅん'], pat: ['なでなで', 'ふにゃ'], happy: ['えへへ', 'キラッ'],
+              sleep: ['すやすや'], smug: ['フン', 'ふふん'], surprised: ['えっ!?', 'ひゃっ'], normal: ['フン', '', ''] };
+  function renderAff() {
+    var html = '<span class="jp">好感度</span>';
+    for (var i = 0; i < 5; i++) {
+      var v = aff - i * 2, cls = v >= 2 ? 'f' : v === 1 ? 'h' : '';
+      html += '<svg viewBox="0 0 24 24" class="' + cls + '"><path d="M12 20s-7-4.4-9.3-8.6C1 8.4 2.6 5 6 5c2 0 3.3 1.1 4 2.3.4.7 1.6.7 2 0C12.7 6.1 14 5 16 5c3.4 0 5 3.4 3.3 6.4C17 15.6 12 20 12 20z"/></svg>';
+    }
+    affEl.innerHTML = html;
+  }
+  function speak(mood, text) {
+    last = text;
+    document.body.className = 'm-' + mood;
+    girl.setAttribute('class', 'girl m-' + mood + (mood === 'angry' ? ' shake' : ''));
+    var fx = r(SFX[mood] || ['']);
+    sfx.classList.remove('show'); sfx.textContent = fx; sfx.className = 'sfx' + (Math.random() < .5 ? ' left' : '');
+    if (fx) { void sfx.offsetWidth; sfx.classList.add('show'); }
+    bubble.className = 'bubble' + (mood === 'angry' ? ' shout' : mood === 'pat' || mood === 'shy' ? ' soft' : '');
+    void bubble.offsetWidth; bubble.classList.add('pop');
+    clearInterval(typing); var i = 0; say.textContent = '';
+    typing = setInterval(function () { i += 2; say.textContent = text.slice(0, i); if (i >= text.length) clearInterval(typing); }, 34);
+  }
+  function tick() {
+    if (Date.now() - lastTouch < 9000) return;  // don't talk over a reaction
+    if (!greeted) { greeted = true; var g = greet(new Date().getHours()); speak(g[0], g[1]); return; }
+    var p = pick(context()); speak(p[0], p[1]);
+  }
+  function hearts(n) {
+    for (var i = 0; i < n; i++) (function (k) {
+      setTimeout(function () {
+        var s = document.createElementNS('http://www.w3.org/2000/svg', 'svg'); s.setAttribute('viewBox', '0 0 24 24'); s.setAttribute('class', 'heart');
+        s.innerHTML = '<path d="M12 20s-7-4.4-9.3-8.6C1 8.4 2.6 5 6 5c2 0 3.3 1.1 4 2.3.4.7 1.6.7 2 0C12.7 6.1 14 5 16 5c3.4 0 5 3.4 3.3 6.4C17 15.6 12 20 12 20z"/>';
+        s.style.left = (38 + Math.random() * 24) + '%'; s.style.top = (40 + Math.random() * 10) + 'vh'; s.style.setProperty('--dx', (Math.random() * 10 - 5) + 'vw');
+        document.body.appendChild(s); setTimeout(function () { s.remove(); }, 1600);
+      }, k * 160);
+    })(i);
+  }
+  function setAff(v) { aff = Math.max(0, Math.min(10, v)); renderAff(); affEl.classList.remove('bump'); void affEl.offsetWidth; affEl.classList.add('bump'); }
+  var holdT = null, held = false;
+  document.addEventListener('pointerdown', function () {
+    held = false; lastTouch = Date.now();
+    holdT = setTimeout(function () {  // head pat
+      held = true; lastTouch = Date.now(); setAff(aff + 1); hearts(aff >= 8 ? 6 : 4);
+      var p = pick(aff >= 8 ? PAT_DERE : PAT); speak(p[0], p[1]);
+    }, 520);
+  });
+  document.addEventListener('pointerup', function () {
+    clearTimeout(holdT); if (held) return;
+    lastTouch = Date.now();
+    var now = Date.now(); pokes = now - pokeAt < 6000 ? pokes + 1 : 1; pokeAt = now;
+    girl.classList.remove('hop'); void girl.getBoundingClientRect(); girl.classList.add('hop');
+    if (pokes >= 5) { setAff(aff - 1); var m = pick(POKE_MANY); speak(m[0], m[1]); pokes = 0; }
+    else { var p = pick(POKE); speak(p[0], p[1]); }
+  });
+  document.addEventListener('pointercancel', function () { clearTimeout(holdT); });
+  phonebox.on('state', function (s) { var first = !S; S = s; if (first) tick(); });
+  phonebox.on('quotas', function (q) { Q = q; });
+  renderAff();
+  setInterval(function () { if (!document.hidden) tick(); }, 14000);
+  setInterval(function () { if (aff > 2) { aff--; renderAff(); } }, 10 * 60000);  // affection slowly fades back to tsun
+  setTimeout(function () { if (!S) tick(); }, 1500);
+</script>

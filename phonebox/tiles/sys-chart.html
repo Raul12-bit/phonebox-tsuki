@@ -1,0 +1,83 @@
+<style>
+  :root { --fg: #fff; --mut: #8c8c8c; --rule: #171717; }
+  body { display: flex; flex-direction: column; height: 100vh; box-sizing: border-box; padding: 3.2vh 2.4vw 2.6vh; -webkit-font-smoothing: antialiased; }
+  header { display: flex; align-items: flex-end; gap: 4.5vw; }
+  .m { min-width: 0; }
+  .l { display: flex; align-items: center; gap: .6em; font-size: 3.4vh; font-weight: 600; letter-spacing: .16em; color: var(--mut); }
+  .l i { display: inline-block; width: 1.8em; height: 0; border-top: 2px solid #fff; }
+  .l i.g { border-top-style: dashed; opacity: .75 } .l i.r { opacity: .35 }
+  .v { font-size: 11vh; font-weight: 300; line-height: 1.05; font-variant-numeric: tabular-nums; color: var(--fg); }
+  .v small { font-size: .38em; color: var(--mut); margin-left: .1em; }
+  .spacer { flex: 1 }
+  .meta { text-align: right; font-size: 3.4vh; line-height: 1.6; color: var(--mut); font-variant-numeric: tabular-nums; }
+  .meta b { color: #d9d9d9; font-weight: 500; }
+  .plot { position: relative; flex: 1; margin-top: 2.6vh; min-height: 0; }
+  canvas { position: absolute; inset: 0; width: 100%; height: 100%; }
+  header, .plot { opacity: 0; animation: in .7s cubic-bezier(.2, .8, .2, 1) forwards; } .plot { animation-delay: .1s }
+  @keyframes in { from { opacity: 0; transform: translateY(8px) } to { opacity: 1; transform: none } }
+  @media (prefers-reduced-motion: reduce) { header, .plot { animation: none; opacity: 1 } }
+</style>
+<header>
+  <div class="m"><div class="l"><i></i>CPU</div><div class="v" id="cpu">–</div></div>
+  <div class="m"><div class="l"><i class="g"></i>GPU</div><div class="v" id="gpu">–</div></div>
+  <div class="m"><div class="l"><i class="r"></i>ПАМЯТЬ</div><div class="v" id="ram">–</div></div>
+  <div class="spacer"></div>
+  <div class="meta" id="meta"></div>
+</header>
+<div class="plot"><div style="position:absolute;right:0;bottom:0;font:900 30vh/1 'Noto Sans CJK JP', 'Noto Sans JP', sans-serif;color:transparent;-webkit-text-stroke:1.2px #ffffff14;pointer-events:none">観測</div><canvas id="c"></canvas></div>
+<script>
+  // Black-and-white history chart: last 2 minutes of CPU (solid + soft fill), GPU (dashed) and memory (dim).
+  // Redrawn only when new state arrives (~1/s) or the tile is resized: no animation loop, so it stays cheap.
+  var N = 120, H = { cpu: [], gpu: [], ram: [] }, cv = document.getElementById('c'), g = cv.getContext('2d');
+  var el = { cpu: document.getElementById('cpu'), gpu: document.getElementById('gpu'), ram: document.getElementById('ram'), meta: document.getElementById('meta') };
+  function add(k, v) { var a = H[k]; a.push(v == null ? null : Math.max(0, Math.min(100, v))); if (a.length > N) a.shift(); }
+  // Until N samples exist the history stretches over the whole width (it "grows" in), then it scrolls.
+  function step(w) { return w / (Math.max(H.cpu.length, 24) - 1); }
+  function path(a, w, h) {
+    g.beginPath(); var started = false, dx = step(w);
+    for (var i = 0; i < a.length; i++) {
+      if (a[i] == null) { started = false; continue; }
+      var x = w - (a.length - 1 - i) * dx, y = h - a[i] / 100 * h;
+      if (started) g.lineTo(x, y); else { g.moveTo(x, y); started = true; }
+    }
+  }
+  function draw() {
+    var r = Math.min(2, window.devicePixelRatio || 1), w = cv.clientWidth, h = cv.clientHeight;
+    if (!w || !h) return;
+    if (cv.width !== Math.round(w * r)) { cv.width = Math.round(w * r); cv.height = Math.round(h * r); }
+    g.setTransform(r, 0, 0, r, 0, 0); g.clearRect(0, 0, w, h);
+    g.strokeStyle = '#171717'; g.lineWidth = 1; g.setLineDash([]);
+    for (var q = 1; q < 4; q++) { var y = Math.round(h * q / 4) + .5; g.beginPath(); g.moveTo(0, y); g.lineTo(w, y); g.stroke(); }
+    g.lineJoin = 'round'; g.lineCap = 'round';
+    path(H.ram, w, h); g.strokeStyle = 'rgba(255,255,255,.28)'; g.lineWidth = 1.5; g.stroke();
+    path(H.gpu, w, h); g.setLineDash([5, 5]); g.strokeStyle = 'rgba(255,255,255,.7)'; g.lineWidth = 1.5; g.stroke(); g.setLineDash([]);
+    if (H.cpu.length > 1) {
+      path(H.cpu, w, h); g.lineTo(w, h); g.lineTo(w - (H.cpu.length - 1) * step(w), h); g.closePath();
+      var grad = g.createLinearGradient(0, 0, 0, h); grad.addColorStop(0, 'rgba(255,255,255,.16)'); grad.addColorStop(1, 'rgba(255,255,255,0)');
+      g.fillStyle = grad; g.fill();
+    }
+    path(H.cpu, w, h); g.strokeStyle = '#fff'; g.lineWidth = 2; g.stroke();
+    var last = H.cpu[H.cpu.length - 1];
+    if (last != null) { g.fillStyle = '#fff'; g.beginPath(); g.arc(w - 1, h - last / 100 * h, 3, 0, 6.283); g.fill(); }
+  }
+  function up(sec) {
+    var d = Math.floor(sec / 86400), hh = Math.floor(sec % 86400 / 3600), m = Math.floor(sec % 3600 / 60);
+    return d ? d + ' д ' + hh + ' ч' : hh ? hh + ' ч ' + m + ' мин' : m + ' мин';
+  }
+  phonebox.on('state', function (s) {
+    var pc = s && s.pc; if (!pc) return;
+    var gp = pc.gpu || {}, ram = pc.ramUsedGb != null && pc.ramTotalGb ? pc.ramUsedGb / pc.ramTotalGb * 100 : null;
+    add('cpu', pc.cpu); add('gpu', gp.util); add('ram', ram);
+    if (window.pbLive && !pbLive()) return; // off screen: keep the history, skip the drawing (perf guard, apply.py)
+    el.cpu.innerHTML = (pc.cpu == null ? '–' : Math.round(pc.cpu)) + '<small>%</small>';
+    el.gpu.innerHTML = (gp.util == null ? '–' : Math.round(gp.util)) + '<small>%</small>';
+    el.ram.innerHTML = (ram == null ? '–' : Math.round(ram)) + '<small>%</small>';
+    var disk = (pc.disks || [])[0], lines = [];
+    if (gp.temp != null) lines.push('GPU <b>' + Math.round(gp.temp) + '°C · ' + (gp.power || 0).toFixed(0) + ' Вт</b>');
+    if (disk) lines.push('Диск ' + disk.name + ' <b>' + Math.round(disk.usedGb) + ' / ' + Math.round(disk.totalGb) + ' ГБ</b>');
+    if (pc.uptimeSec) lines.push('Работает <b>' + up(pc.uptimeSec) + '</b>');
+    el.meta.innerHTML = lines.join('<br>');
+    draw();
+  });
+  window.addEventListener('resize', draw);
+</script>

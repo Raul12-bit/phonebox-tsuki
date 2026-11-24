@@ -1,0 +1,371 @@
+<style>
+  :root { --fg: #fff; --mut: #8a8a8a; --line: #ffffff2b; --card: #0b0b0b; --press: #1d1d1d; }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; background: #000; color: var(--fg); overflow: hidden; }
+  body { font-family: Roboto, system-ui, sans-serif; font-size: 12px; user-select: none; -webkit-user-select: none;
+         -webkit-tap-highlight-color: transparent; display: grid; grid-template-columns: 56px 1fr 56px; height: 100vh; }
+  button { font-family: inherit; color: inherit; }
+  .rail { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px; padding: 6px 0; touch-action: none; }
+  .b { width: 46px; min-height: 42px; border: 1px solid var(--line); border-radius: 14px; background: var(--card);
+       display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px; padding: 5px 0;
+       font-size: 7.5px; font-weight: 700; letter-spacing: .1em; transition: transform .12s ease, background-color .12s ease; }
+  .b svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+  .b:active { transform: scale(.92); background: var(--press); }
+  .b.on { background: #fff; color: #000; border-color: #fff; }
+  .wheel { width: 46px; flex: 1; max-height: 190px; min-height: 90px; border: 1px solid var(--line); border-radius: 16px; position: relative; overflow: hidden;
+           background: repeating-linear-gradient(180deg, transparent 0 9px, #ffffff1f 9px 10px); background-position: 0 0; }
+  .wheel::before, .wheel::after { content: ""; position: absolute; left: 0; right: 0; height: 26px; pointer-events: none; }
+  .wheel::before { top: 0; background: linear-gradient(#000, #0000); }
+  .wheel::after { bottom: 0; background: linear-gradient(#0000, #000); }
+  .wheel.act { border-color: #fff; }
+  .wl { font-size: 7px; letter-spacing: .14em; color: var(--mut); writing-mode: vertical-rl; }
+  .stage { position: relative; overflow: hidden; }
+  canvas { position: absolute; inset: 0; width: 100%; height: 100%; touch-action: none; }
+  .pill { position: absolute; left: 8px; top: 7px; display: flex; align-items: center; gap: 7px; padding: 5px 10px 5px 8px;
+          background: #000c; border: 1px solid var(--line); border-radius: 99px; font-size: 9px; font-weight: 600; letter-spacing: .1em;
+          color: #d6d6d6; pointer-events: none; font-variant-numeric: tabular-nums; }
+  .dot { width: 7px; height: 7px; border-radius: 50%; background: #fff; }
+  .dot.blip { opacity: .45; }
+  .dot.off { background: #555; animation: none; }
+  .dot.warn { background: #fff; animation: none; opacity: .5; }
+  .zoom { position: absolute; right: 8px; top: 7px; padding: 6px 10px; border-radius: 99px; background: #fff; color: #000; border: 0;
+          font-size: 9px; font-weight: 800; letter-spacing: .08em; display: none; }
+  .zoom.show { display: block; }
+  .msg { position: absolute; inset: 0; display: grid; place-items: center; text-align: center; padding: 0 14%; color: var(--mut);
+         font-size: 13px; line-height: 1.55; pointer-events: none; }
+  .msg b { display: block; color: #fff; font-size: 16px; font-weight: 500; margin-bottom: 4px; }
+  .hint { position: absolute; left: 50%; bottom: 10px; transform: translateX(-50%); white-space: nowrap; padding: 7px 12px;
+          border-radius: 99px; background: #000d; border: 1px solid var(--line); color: #cfcfcf; font-size: 10px; letter-spacing: .02em;
+          pointer-events: none; opacity: 0; transition: opacity .4s ease; }
+  .hint.show { opacity: 1; }
+  .ring { position: absolute; width: 40px; height: 40px; margin: -20px 0 0 -20px; border: 2px solid #fff; border-radius: 50%;
+          pointer-events: none; animation: rip .42s ease-out forwards; }
+  .ring.r { border-style: dashed; }
+  .ring.h { animation: hold .45s ease-out forwards; }
+  .kb { position: absolute; left: 6px; right: 6px; bottom: 6px; background: #000e; border: 1px solid var(--line); border-radius: 18px;
+        padding: 7px; display: none; flex-direction: column; gap: 7px; }
+  .kb.show { display: flex; animation: up .22s cubic-bezier(.2, .8, .2, 1); }
+  .row { display: flex; gap: 6px; align-items: center; }
+  .row input { flex: 1; min-width: 0; height: 36px; border-radius: 12px; border: 1px solid #ffffff40; background: #000; color: #fff;
+               padding: 0 12px; font: 400 14px Roboto, system-ui, sans-serif; outline: none; user-select: text; -webkit-user-select: text; }
+  .row input:focus { border-color: #fff; }
+  .send { height: 36px; padding: 0 14px; border-radius: 12px; border: 0; background: #fff; color: #000; font-size: 11px; font-weight: 700; letter-spacing: .06em; }
+  .send:active { transform: scale(.95); }
+  .keys { display: flex; gap: 6px; overflow-x: auto; touch-action: pan-x; scrollbar-width: none; padding-bottom: 1px; }
+  .keys::-webkit-scrollbar { display: none; }
+  .k { flex: none; min-width: 42px; height: 34px; padding: 0 10px; border-radius: 11px; border: 1px solid var(--line); background: var(--card);
+       font-size: 11px; font-weight: 600; letter-spacing: .02em; }
+  .k:active { background: #fff; color: #000; }
+  @keyframes rip { from { transform: scale(.3); opacity: 1 } to { transform: scale(1.5); opacity: 0 } }
+  @keyframes hold { from { transform: scale(1.6); opacity: .2 } to { transform: scale(.9); opacity: 1 } }
+  @keyframes up { from { transform: translateY(14px); opacity: 0 } to { transform: none; opacity: 1 } }
+  @media (prefers-reduced-motion: reduce) { .ring { animation-duration: .01s } .kb.show { animation: none } }
+</style>
+<div class="rail">
+  <button class="b" id="home" aria-label="Главная"><svg viewBox="0 0 24 24"><path d="M4 11l8-6.5 8 6.5M6.5 9.5V19h11V9.5"/></svg>ДОМОЙ</button>
+  <button class="b on" id="mode" aria-label="Режим"><svg viewBox="0 0 24 24" id="modeIco"></svg><span id="modeTxt">КАСАН.</span></button>
+  <button class="b" id="qual" aria-label="Качество"><svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="2.5"/><path d="M7 15l3-4 2.5 3 2-2 2.5 3"/></svg><span id="qualTxt">АВТО</span></button>
+  <button class="b" id="kbBtn" aria-label="Клавиатура"><svg viewBox="0 0 24 24"><rect x="2.5" y="6" width="19" height="12" rx="2.5"/><path d="M6 10h.01M9 10h.01M12 10h.01M15 10h.01M18 10h.01M7.5 14h9"/></svg>КЛАВ.</button>
+  <button class="b" id="pause" aria-label="Пауза"><svg viewBox="0 0 24 24" id="pauseIco"><path d="M9 6v12M15 6v12"/></svg><span id="pauseTxt">ПАУЗА</span></button>
+</div>
+<div class="stage" id="stage">
+  <canvas id="cv"></canvas>
+  <div class="pill"><span class="dot off" id="dot"></span><span id="state">ЭКРАН НОУТБУКА</span></div>
+  <button class="zoom" id="zoom">1:1</button>
+  <div class="msg" id="msg"><div><b>Подключаюсь…</b>через Tailscale — работает из любой сети</div></div>
+  <div class="hint" id="hint">тап — клик · удержать — ПКМ · удержать и вести — перетащить · свайп — прокрутка · щипок — зум</div>
+  <div class="kb" id="kb">
+    <div class="row"><input id="txt" type="text" placeholder="Текст для ноутбука…" enterkeyhint="send" autocomplete="off" autocapitalize="off" spellcheck="false">
+      <button class="send" id="sendTxt">ВВЕСТИ</button><button class="send" id="sendEnter" aria-label="Ввести и нажать Enter">⏎</button></div>
+    <div class="keys" id="keys"></div>
+  </div>
+</div>
+<div class="rail">
+  <button class="b" id="rclick" aria-label="Правый клик"><svg viewBox="0 0 24 24"><rect x="6" y="3" width="12" height="18" rx="6"/><path d="M12 3v7M12 10h6"/></svg>ПКМ</button>
+  <div class="wheel" id="wheel"></div>
+  <span class="wl">КОЛЕСО</span>
+  <button class="b" id="remote" aria-label="Пульт"><svg viewBox="0 0 24 24"><rect x="4" y="4" width="16" height="16" rx="3"/><path d="M12 8v4"/></svg>ПУЛЬТ</button>
+</div>
+<script>
+  // Live laptop screen + full remote control, over `tailscale serve` (works from any network the phone is on).
+  // * Frames: one request at a time (a slow link gets fewer frames, never a queue), decoded off the main thread
+  //   (img.decode) and drawn to a canvas, so touches stay responsive on a slow phone.
+  // * Auto quality picks width/JPEG quality from the measured frame time: Wi-Fi gets a sharp picture, mobile data a light one.
+  // * Nothing is fetched while the tile is off screen, hidden, paused or untouched for 3 minutes.
+  // * Input goes through one ordered queue; cursor moves and scrolls are merged while a request is in flight.
+  var BASE = '__BASE__', KEY = '__KEY__';
+  var $ = function (id) { return document.getElementById(id); };
+  var cv = $('cv'), ctx = cv.getContext('2d', { alpha: false }), stage = $('stage');
+  var stateEl = $('state'), dot = $('dot'), msg = $('msg');
+  var img = null, aspect = 16 / 10, W = 0, H = 0, dpr = 1, bw = 0, bh = 0, view = { z: 1, x: 0, y: 0 };
+  var screenW = 1920, mode = 'direct', qual = 'auto', paused = false, busy = false, fails = 0, onScreen = true;
+  var lastTouch = Date.now(), frames = 0, fpsAt = Date.now(), fps = 0, ewma = 0, tierAt = 0;
+  var TIERS = [{ w: 640, q: 40 }, { w: 860, q: 50 }, { w: 1080, q: 58 }, { w: 1360, q: 65 }, { w: 1700, q: 72 }], tier = 2;
+  var IDLE_MS = 180000, MIN_GAP = 110;
+
+  function url(path, extra) { return BASE + path + '?k=' + KEY + (extra || ''); }
+  function show(title, text) { msg.style.display = title ? 'grid' : 'none'; if (title) msg.innerHTML = '<div><b>' + title + '</b>' + (text || '') + '</div>'; }
+  function buzz(ms) { try { navigator.vibrate && navigator.vibrate(ms); } catch (e) {} }
+
+  // ---- layout / view ----------------------------------------------------------------------------------------------
+  function layout() {
+    var r = stage.getBoundingClientRect();
+    dpr = Math.min(window.devicePixelRatio || 1, 2); W = r.width; H = r.height;
+    cv.width = Math.round(W * dpr); cv.height = Math.round(H * dpr);
+    var s = Math.min(W / aspect, H); bh = s; bw = s * aspect;
+    if (bw > W) { bw = W; bh = W / aspect; }
+    view.z = 1; clampView(); draw(); zoomBadge();
+  }
+  function clampView() {
+    var dw = bw * view.z, dh = bh * view.z;
+    view.x = dw <= W ? (W - dw) / 2 : Math.min(0, Math.max(W - dw, view.x));
+    view.y = dh <= H ? (H - dh) / 2 : Math.min(0, Math.max(H - dh, view.y));
+  }
+  function draw() {
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0); ctx.fillStyle = '#000'; ctx.fillRect(0, 0, W, H);
+    if (img) ctx.drawImage(img, view.x, view.y, bw * view.z, bh * view.z);
+  }
+  function zoomAt(z, fx, fy) {
+    z = Math.max(1, Math.min(5, z)); var k = z / view.z;
+    view.x = fx - (fx - view.x) * k; view.y = fy - (fy - view.y) * k; view.z = z; clampView(); draw(); zoomBadge();
+  }
+  function zoomBadge() { var z = $('zoom'); z.classList.toggle('show', view.z > 1.02); z.textContent = '×' + view.z.toFixed(1) + '  ·  1:1'; }
+  $('zoom').onclick = function () { view.z = 1; clampView(); draw(); zoomBadge(); };
+  function local(e) { var r = stage.getBoundingClientRect(); return { x: e.clientX - r.left, y: e.clientY - r.top }; }
+  function rel(p) {  // a stage point as a fraction of the laptop screen
+    var x = (p.x - view.x) / (bw * view.z), y = (p.y - view.y) / (bh * view.z);
+    return x < 0 || y < 0 || x > 1 || y > 1 ? null : { x: x, y: y };
+  }
+  new ResizeObserver(layout).observe(stage);
+
+  // ---- frames -----------------------------------------------------------------------------------------------------
+  function want() {
+    if (qual === 'hd') return { w: 1700, q: 74 };
+    if (qual === 'sd') return { w: 720, q: 42 };
+    var t = TIERS[tier];
+    return view.z > 1.4 ? { w: Math.max(t.w, 1360), q: t.q } : t;
+  }
+  function running() { return !paused && onScreen && !document.hidden && Date.now() - lastTouch < IDLE_MS; }
+  function setState() {
+    if (paused) { dot.className = 'dot off'; stateEl.textContent = 'ПАУЗА'; return; }
+    if (!running()) { dot.className = 'dot off'; stateEl.textContent = 'СПИТ'; if (onScreen && !document.hidden) show('Экран на паузе', 'коснись, чтобы продолжить'); }
+  }
+  function next() {
+    if (busy) return;
+    if (!running()) { setState(); return; }
+    busy = true;
+    var t0 = performance.now(), p = want(), im = new Image(), done = false;
+    var timer = setTimeout(function () { if (!done) { done = true; im.src = ''; failed(); } }, 9000);
+    im.decoding = 'async';
+    im.src = url('/frame.jpg', '&w=' + p.w + '&q=' + p.q + '&t=' + Date.now());
+    im.decode().then(function () {
+      if (done) return; done = true; clearTimeout(timer); busy = false; fails = 0;
+      var ms = performance.now() - t0;
+      img = im; var a = im.naturalWidth / im.naturalHeight;
+      if (Math.abs(a - aspect) > 0.01) { aspect = a; layout(); } else draw();
+      show(null); dot.className = ms > 600 ? 'dot warn' : frames % 2 ? 'dot blip' : 'dot'; adapt(ms); frames++;
+      var now = Date.now();
+      if (now - fpsAt > 1500) { fps = frames * 1000 / (now - fpsAt); frames = 0; fpsAt = now; }
+      stateEl.textContent = 'ЭФИР · ' + fps.toFixed(1) + ' К/С · ' + Math.round(ewma) + ' МС · ' + p.w + 'P';
+      setTimeout(next, Math.max(0, MIN_GAP - ms));
+    }, function () { if (done) return; done = true; clearTimeout(timer); failed(); });
+  }
+  function failed() {
+    busy = false; fails++; dot.className = 'dot off'; stateEl.textContent = 'НЕТ СВЯЗИ';
+    if (qual === 'auto' && tier > 0) tier--;
+    if (fails > 1) show('Нет картинки', 'ноутбук спит или выключен, экран заблокирован, или на телефоне выключен Tailscale. Пробую снова…');
+    setTimeout(next, Math.min(6000, 700 * fails));
+  }
+  function adapt(ms) {
+    ewma = ewma ? ewma * 0.75 + ms * 0.25 : ms;
+    if (qual !== 'auto') return;
+    var now = Date.now();
+    if (ewma > 420 && tier > 0 && now - tierAt > 2500) { tier--; tierAt = now; }
+    else if (ewma < 170 && tier < TIERS.length - 1 && now - tierAt > 6000) { tier++; tierAt = now; }
+  }
+  // The panel does not see touches inside this iframe and would go to the night page after 5 minutes of use.
+  // Going to the page we are already on moves nothing but resets its idle timer (at most every 15 s).
+  var PAGE = '__PAGE__', keptAt = 0;
+  function wake() {
+    var was = running(); lastTouch = Date.now();
+    if (PAGE.indexOf('__') && lastTouch - keptAt > 15000) { keptAt = lastTouch; try { phonebox.goto(PAGE); } catch (e) {} }
+    if (!was && running()) { show(null); next(); }
+  }
+
+  // ---- input queue ------------------------------------------------------------------------------------------------
+  var Q = [], sending = false;
+  function cmd(path, params, merge) {
+    var last = Q[Q.length - 1];
+    if (merge && last && last.path === path) {
+      if (path === '/moverel') { last.p.dx += params.dx; last.p.dy += params.dy; }
+      else if (path === '/scroll' || path === '/hscroll') last.p.d += params.d;
+      else last.p = params;
+    } else Q.push({ path: path, p: params || {} });
+    pump();
+  }
+  function pump() {
+    if (sending || !Q.length) return;
+    var c = Q.shift(), qs = '';
+    for (var k in c.p) { var v = c.p[k]; qs += '&' + k + '=' + encodeURIComponent(typeof v === 'number' ? +v.toFixed(4) : v); }
+    sending = true;
+    var ctl = window.AbortController ? new AbortController() : null, t = setTimeout(function () { ctl && ctl.abort(); }, 5000);
+    fetch(url(c.path, qs), { mode: 'no-cors', cache: 'no-store', signal: ctl ? ctl.signal : undefined })
+      .catch(function () {}).then(function () { clearTimeout(t); sending = false; pump(); });
+  }
+  function ring(p, cls) { var r = document.createElement('div'); r.className = 'ring ' + (cls || ''); r.style.left = p.x + 'px'; r.style.top = p.y + 'px'; stage.appendChild(r); setTimeout(function () { r.remove(); }, 520); }
+
+  var lastTap = null;
+  function click(p, button) {
+    if (mode === 'pad') { cmd('/click', { b: button }); ring(p, button === 'right' ? 'r' : ''); return; }
+    var r = rel(p); if (!r) return;
+    // a second tap close in time and place reuses the first point, so Windows sees a real double click
+    var now = Date.now();
+    if (button === 'left' && lastTap && now - lastTap.t < 450 && Math.hypot(p.x - lastTap.p.x, p.y - lastTap.p.y) < 22) r = lastTap.r;
+    if (button === 'left') lastTap = { t: now, p: p, r: r };
+    ring(p, button === 'right' ? 'r' : ''); cmd('/click', { x: r.x, y: r.y, b: button });
+  }
+  function padK(dx, dy) { return (screenW / Math.max(1, bw)) * 0.85 * (1 + Math.min(1.6, Math.hypot(dx, dy) / 12)); }
+  var scrollAcc = 0;
+  function scrollBy(dy) { scrollAcc += dy; if (Math.abs(scrollAcc) >= 10) { cmd('/scroll', { d: scrollAcc / 32 }, true); scrollAcc = 0; } }
+
+  // ---- gestures on the picture ------------------------------------------------------------------------------------
+  var P = new Map(), g = null, holdT = null;
+  function pts() { return Array.from(P.values()); }
+  cv.addEventListener('pointerdown', function (e) {
+    wake(); try { cv.setPointerCapture(e.pointerId); } catch (_) {}
+    var p = local(e); P.set(e.pointerId, p);
+    if (P.size === 1) {
+      g = { kind: 'one', s: p, l: p, moved: false, armed: false, drag: false };
+      clearTimeout(holdT);
+      holdT = setTimeout(function () { if (g && g.kind === 'one' && !g.moved) { g.armed = true; buzz(15); ring(g.s, 'h'); } }, 420);
+    } else if (P.size === 2) {
+      clearTimeout(holdT);
+      if (g && g.drag) endDrag(g.l);
+      var a = pts(), m = { x: (a[0].x + a[1].x) / 2, y: (a[0].y + a[1].y) / 2 };
+      g = { kind: 'two', d0: Math.hypot(a[0].x - a[1].x, a[0].y - a[1].y) || 1, z0: view.z, l: m, moved: false, t: Date.now() };
+    }
+  });
+  cv.addEventListener('pointermove', function (e) {
+    if (!P.has(e.pointerId) || !g) return;
+    var p = local(e); P.set(e.pointerId, p);
+    if (g.kind === 'one') {
+      var dx = p.x - g.l.x, dy = p.y - g.l.y; g.l = p;
+      if (!g.moved && Math.hypot(p.x - g.s.x, p.y - g.s.y) > 9) {
+        g.moved = true; clearTimeout(holdT);
+        if (g.armed) { g.drag = true; startDrag(g.s); }
+      }
+      if (!g.moved) return;
+      if (g.drag) dragMove(p, dx, dy);
+      else if (mode === 'pad') { var k = padK(dx, dy); cmd('/moverel', { dx: dx * k, dy: dy * k }, true); }
+      else if (view.z > 1.02) { view.x += dx; view.y += dy; clampView(); draw(); }
+      else scrollBy(dy);
+    } else if (g.kind === 'two' && P.size === 2) {
+      var a = pts(), m = { x: (a[0].x + a[1].x) / 2, y: (a[0].y + a[1].y) / 2 }, d = Math.hypot(a[0].x - a[1].x, a[0].y - a[1].y);
+      if (!g.moved && (Math.abs(d - g.d0) > 10 || Math.hypot(m.x - g.l.x, m.y - g.l.y) > 8)) g.moved = true;
+      if (g.moved) {
+        if (mode === 'pad' && view.z <= 1.02 && Math.abs(d - g.d0) < 40) scrollBy(m.y - g.l.y);
+        else { zoomAt(g.z0 * d / g.d0, m.x, m.y); view.x += m.x - g.l.x; view.y += m.y - g.l.y; clampView(); draw(); }
+        g.l = m;
+      }
+    }
+  });
+  function finish(e, cancelled) {
+    if (!P.has(e.pointerId)) return;
+    P.delete(e.pointerId);
+    if (!g) return;
+    if (g.kind === 'one') {
+      clearTimeout(holdT);
+      if (g.drag) endDrag(g.l);
+      else if (!cancelled && !g.moved) click(g.s, g.armed ? 'right' : 'left');
+      g = null;
+    } else if (g.kind === 'two' && P.size === 0) {
+      if (!cancelled && !g.moved && Date.now() - g.t < 350) { buzz(10); click(g.l, 'right'); }
+      g = null;
+    }
+  }
+  cv.addEventListener('pointerup', function (e) { finish(e, false); });
+  cv.addEventListener('pointercancel', function (e) { finish(e, true); });
+
+  var dragLast = null;
+  function startDrag(p) {
+    buzz(25);
+    if (mode === 'pad') { cmd('/down', { b: 'left' }); return; }
+    var r = rel(p); if (!r) return; dragLast = r; cmd('/down', { x: r.x, y: r.y, b: 'left' });
+  }
+  function dragMove(p, dx, dy) {
+    if (mode === 'pad') { var k = padK(dx, dy); cmd('/moverel', { dx: dx * k, dy: dy * k }, true); return; }
+    var r = rel(p); if (r) { dragLast = r; cmd('/move', { x: r.x, y: r.y }, true); }
+  }
+  function endDrag(p) {
+    if (mode === 'pad') { cmd('/up', { b: 'left' }); return; }
+    var r = rel(p) || dragLast; if (r) cmd('/up', { x: r.x, y: r.y, b: 'left' }); else cmd('/up', { b: 'left' });
+    dragLast = null;
+  }
+
+  // ---- rails ------------------------------------------------------------------------------------------------------
+  var wheel = $('wheel'), wY = null, wPos = 0;
+  wheel.addEventListener('pointerdown', function (e) { wake(); wY = e.clientY; wheel.classList.add('act'); try { wheel.setPointerCapture(e.pointerId); } catch (_) {} });
+  wheel.addEventListener('pointermove', function (e) {
+    if (wY === null) return; var dy = e.clientY - wY; wY = e.clientY;
+    wPos += dy; wheel.style.backgroundPosition = '0 ' + wPos + 'px';
+    if (Math.abs(dy) > 0) { scrollAcc += dy; if (Math.abs(scrollAcc) >= 8) { cmd('/scroll', { d: scrollAcc / 22 }, true); scrollAcc = 0; buzz(4); } }
+  });
+  function wheelEnd() { wY = null; wheel.classList.remove('act'); }
+  wheel.addEventListener('pointerup', wheelEnd); wheel.addEventListener('pointercancel', wheelEnd);
+
+  var ICON = { direct: '<path d="M9 11V5.5a1.5 1.5 0 0 1 3 0V11M12 10V4a1.5 1.5 0 0 1 3 0v7M15 10.5a1.5 1.5 0 0 1 3 0V15a6 6 0 0 1-6 6h-1a6 6 0 0 1-5-2.7L4 14.6a1.5 1.5 0 0 1 2.5-1.7L9 15V8.5"/>',
+               pad: '<rect x="3" y="4" width="18" height="16" rx="3"/><path d="M3 15h18M12 15v5"/>' };
+  function setMode(m) {
+    mode = m; $('modeIco').innerHTML = ICON[m]; $('modeTxt').textContent = m === 'pad' ? 'ТАЧПАД' : 'КАСАН.';
+    hint(m === 'pad' ? 'веди пальцем — курсор · тап — клик · два пальца: тап — ПКМ, вести — прокрутка · удержать и вести — перетащить'
+                     : 'тап — клик · удержать — ПКМ · удержать и вести — перетащить · свайп — прокрутка · щипок — зум');
+  }
+  $('mode').onclick = function () { wake(); setMode(mode === 'direct' ? 'pad' : 'direct'); };
+  $('qual').onclick = function () {
+    wake(); qual = qual === 'auto' ? 'hd' : qual === 'hd' ? 'sd' : 'auto';
+    $('qualTxt').textContent = qual === 'auto' ? 'АВТО' : qual.toUpperCase(); $('qual').classList.toggle('on', qual !== 'auto');
+  };
+  $('pause').onclick = function () {
+    paused = !paused; lastTouch = Date.now();
+    $('pause').classList.toggle('on', paused); $('pauseTxt').textContent = paused ? 'ДАЛЬШЕ' : 'ПАУЗА';
+    $('pauseIco').innerHTML = paused ? '<path d="M8 5.5v13l10-6.5z"/>' : '<path d="M9 6v12M15 6v12"/>';
+    if (!paused) { show(null); next(); } else setState();
+  };
+  $('rclick').onclick = function () { wake(); buzz(10); cmd('/click', { b: 'right' }); };
+  $('home').onclick = function () { try { phonebox.goto('home'); } catch (e) {} };
+  $('remote').onclick = function () { try { phonebox.goto('remote'); } catch (e) {} };
+
+  // keyboard panel
+  var KEYS = [['Esc', 'esc'], ['Tab', 'tab'], ['Win', 'win'], ['⌫', 'backspace'], ['Del', 'delete'], ['⏎', 'enter'], ['←', 'left'], ['↑', 'up'],
+              ['↓', 'down'], ['→', 'right'], ['Ctrl+C', 'ctrl+c'], ['Ctrl+V', 'ctrl+v'], ['Ctrl+Z', 'ctrl+z'], ['Ctrl+A', 'ctrl+a'], ['Ctrl+S', 'ctrl+s'],
+              ['Alt+Tab', 'alt+tab'], ['Win+D', 'win+d'], ['Alt+F4', 'alt+f4'], ['F5', 'f5'], ['Home', 'home'], ['End', 'end'], ['PgUp', 'pgup'],
+              ['PgDn', 'pgdn'], ['Язык', 'win+space'], ['Ctrl+T', 'ctrl+t'], ['Ctrl+W', 'ctrl+w']];
+  var keysEl = $('keys');
+  KEYS.forEach(function (k) {
+    var b = document.createElement('button'); b.className = 'k'; b.textContent = k[0];
+    b.onclick = function () { wake(); buzz(8); cmd('/key', { c: k[1] }); };
+    keysEl.appendChild(b);
+  });
+  var kb = $('kb'), txt = $('txt');
+  $('kbBtn').onclick = function () { wake(); var on = !kb.classList.contains('show'); kb.classList.toggle('show', on); $('kbBtn').classList.toggle('on', on); if (on) setTimeout(function () { txt.focus(); }, 60); else txt.blur(); };
+  function sendText(enter) { var s = txt.value; if (!s && !enter) return; wake(); buzz(10); if (s) cmd('/type', { s: s }); if (enter) cmd('/key', { c: 'enter' }); txt.value = ''; }
+  $('sendTxt').onclick = function () { sendText(false); };
+  $('sendEnter').onclick = function () { sendText(true); };
+  txt.addEventListener('keydown', function (e) { if (e.key === 'Enter') { e.preventDefault(); sendText(true); } });
+
+  var hintT = null;
+  function hint(text) { var h = $('hint'); h.textContent = text; h.classList.add('show'); clearTimeout(hintT); hintT = setTimeout(function () { h.classList.remove('show'); }, 4500); }
+
+  // ---- lifecycle --------------------------------------------------------------------------------------------------
+  // PhoneBox keeps every page mounted while you swipe: stop pulling frames the moment this tile leaves the screen.
+  try {
+    new IntersectionObserver(function (en) {
+      var was = onScreen; onScreen = en[en.length - 1].isIntersecting;
+      if (onScreen && !was) { lastTouch = Date.now(); next(); } else if (!onScreen) setState();
+    }).observe(document.documentElement);
+  } catch (e) {}
+  document.addEventListener('visibilitychange', function () { if (!document.hidden) { lastTouch = Date.now(); next(); } });
+  fetch(url('/info', '&t=' + Date.now()), { cache: 'no-store' }).then(function (r) { return r.json(); })
+    .then(function (i) { if (i && i.w) { screenW = i.w; aspect = i.w / i.h; layout(); } }).catch(function () {});
+  setMode('direct'); layout(); next();
+</script>

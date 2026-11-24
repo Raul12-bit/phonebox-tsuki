@@ -1,0 +1,73 @@
+<style>
+  :root { --fg: #fff; --mut: #8c8c8c; --track: #1d1d1d; --rule: #1a1a1a; }
+  body { display: grid; grid-template-columns: repeat(4, 1fr); height: 100vh; -webkit-font-smoothing: antialiased; }
+  .c { position: relative; display: flex; flex-direction: column; justify-content: center; min-width: 0; padding: 0 8%; }
+  .c + .c::before { content: ""; position: absolute; left: 0; top: 20%; bottom: 20%; width: 1px; background: var(--rule); }
+  .l i { font-style: normal; font-family: "Noto Sans CJK JP", "Noto Sans JP", sans-serif; letter-spacing: 0; color: #5f5f5f; margin-left: .45em; font-weight: 500; }
+  .l { font-size: 10.5vh; font-weight: 600; letter-spacing: .16em; color: var(--mut); }
+  .v { font-size: 33vh; font-weight: 300; line-height: 1.04; color: var(--fg); font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .v small { font-size: .36em; font-weight: 400; color: var(--mut); margin-left: .12em; }
+  .t { height: 2px; margin-top: 5vh; background: var(--track); border-radius: 2px; overflow: hidden; }
+  .t i { display: block; height: 100%; background: var(--fg); transform-origin: left center; transform: scaleX(0);
+         }
+  .s { margin-top: 4.5vh; font-size: 10vh; color: var(--mut); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  svg { position: absolute; right: 8%; top: 17%; width: 38%; height: 24%; overflow: visible; }
+  polyline { fill: none; stroke: #fff; stroke-opacity: .45; stroke-width: 1.5; stroke-linejoin: round; vector-effect: non-scaling-stroke; }
+  .c { opacity: 0; animation: in .6s cubic-bezier(.2, .8, .2, 1) forwards; }
+  .c:nth-child(2) { animation-delay: .06s } .c:nth-child(3) { animation-delay: .12s } .c:nth-child(4) { animation-delay: .18s }
+  @keyframes in { from { opacity: 0; transform: translateY(6px) } to { opacity: 1; transform: none } }
+  @media (prefers-reduced-motion: reduce) { .c { animation: none; opacity: 1 } }
+</style>
+<div class="c" id="cpu"><div class="l">CPU<i>処理</i></div><div class="v">–</div><div class="t"><i></i></div><div class="s"></div><svg viewBox="0 0 40 10" preserveAspectRatio="none"><polyline/></svg></div>
+<div class="c" id="gpu"><div class="l">GPU<i>描画</i></div><div class="v">–</div><div class="t"><i></i></div><div class="s"></div><svg viewBox="0 0 40 10" preserveAspectRatio="none"><polyline/></svg></div>
+<div class="c" id="ram"><div class="l">ПАМЯТЬ<i>記憶</i></div><div class="v">–</div><div class="t"><i></i></div><div class="s"></div><svg viewBox="0 0 40 10" preserveAspectRatio="none"><polyline/></svg></div>
+<div class="c" id="net"><div class="l">СЕТЬ<i>通信</i></div><div class="v">–</div><div class="t"><i></i></div><div class="s"></div><svg viewBox="0 0 40 10" preserveAspectRatio="none"><polyline/></svg></div>
+<script>
+  // Black-and-white system strip. Updates only when the panel pushes new state (about once a second):
+  // no animation loop and no transitions: the bars jump once a second (one frame); the phone's WebView is the bottleneck.
+  var N = 40, hist = { cpu: [], gpu: [], ram: [], net: [] }, netMax = 1;
+  var cells = {};
+  ['cpu', 'gpu', 'ram', 'net'].forEach(function (k) {
+    var el = document.getElementById(k);
+    cells[k] = { v: el.querySelector('.v'), bar: el.querySelector('.t i'), s: el.querySelector('.s'), line: el.querySelector('polyline') };
+  });
+  function fmtRate(bps) {
+    if (bps == null) return ['–', ''];
+    var mb = bps / 1048576;
+    if (mb >= 10) return [mb.toFixed(0), 'МБ/с'];
+    if (mb >= 1) return [mb.toFixed(1), 'МБ/с'];
+    return [(bps / 1024).toFixed(0), 'КБ/с'];
+  }
+  function push(k, v, max) {
+    var h = hist[k]; h.push(v == null ? 0 : v); if (h.length > N) h.shift();
+    var pts = '';
+    for (var i = 0; i < h.length; i++) pts += (i * 40 / (N - 1)).toFixed(1) + ',' + (10 - Math.min(1, h[i] / max) * 10).toFixed(2) + ' ';
+    cells[k].line.setAttribute('points', pts);
+  }
+  function set(k, big, unit, frac, sub) {
+    var c = cells[k];
+    c.v.innerHTML = big + (unit ? '<small>' + unit + '</small>' : '');
+    c.bar.style.transform = 'scaleX(' + Math.max(0, Math.min(1, frac || 0)).toFixed(3) + ')';
+    c.s.textContent = sub || '';
+  }
+  phonebox.on('state', function (s) {
+    var pc = s && s.pc; if (!pc) return;
+    if (window.pbLive && !pbLive()) return; // off screen: keep the history, skip the drawing (perf guard, apply.py)
+    var cpu = pc.cpu;
+    set('cpu', cpu == null ? '–' : Math.round(cpu), '%', (cpu || 0) / 100,
+        pc.cpuTemp != null ? Math.round(pc.cpuTemp) + '°C' : (pc.cpuName || '').replace(/.*(i\d-\w+|Ryzen \d \w+).*/, '$1'));
+    push('cpu', cpu, 100);
+    var g = pc.gpu || {};
+    set('gpu', g.util == null ? '–' : Math.round(g.util), '%', (g.util || 0) / 100,
+        [g.temp != null ? Math.round(g.temp) + '°C' : '', g.power != null ? g.power.toFixed(0) + ' Вт' : ''].filter(Boolean).join(' · '));
+    push('gpu', g.util, 100);
+    var used = pc.ramUsedGb, tot = pc.ramTotalGb, pct = used != null && tot ? used / tot * 100 : null;
+    set('ram', pct == null ? '–' : Math.round(pct), '%', (pct || 0) / 100, used != null ? used.toFixed(1) + ' / ' + tot.toFixed(1) + ' ГБ' : '');
+    push('ram', pct, 100);
+    var down = pc.netDownBps, up = pc.netUpBps, d = fmtRate(down), u = fmtRate(up);
+    netMax = Math.max(netMax * 0.98, down || 0, 262144);
+    var ping = s.ping && s.ping.ms != null ? ' · ' + Math.round(s.ping.ms) + ' мс' : '';
+    set('net', d[0], d[1], (down || 0) / netMax, '↑ ' + u[0] + ' ' + u[1] + ping);
+    push('net', down, netMax);
+  });
+</script>
