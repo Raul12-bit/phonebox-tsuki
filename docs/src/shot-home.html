@@ -1,0 +1,35 @@
+<!doctype html><meta charset="utf-8"><title>home</title>
+<link rel="stylesheet" href="mockup.css">
+<style>
+  /* stand-in for PhoneBox's own (native) media widget: a made-up track, no real cover art */
+  .media { padding: 18px 18px 14px; display: flex; flex-direction: column; color: #fff; }
+  .media .top { display: flex; gap: 12px; align-items: center; }
+  .media .art { width: 64px; height: 64px; flex: none; border-radius: 10px; background: #000; border: 1px solid #333; position: relative; overflow: hidden;
+                background-image: radial-gradient(circle, #ffffff30 1px, transparent 1.3px); background-size: 5px 5px; }
+  .media .art svg { position: absolute; inset: 0; width: 100%; height: 100%; }
+  .media .app { font-size: 9px; letter-spacing: .14em; font-weight: 700; color: #cfcfcf; }
+  .media .t { font-size: 15px; font-weight: 700; margin-top: 2px; }
+  .media .a { font-size: 12px; color: #8c8c8c; margin-top: 1px; }
+  .media .bar { margin-top: 14px; height: 3px; border-radius: 2px; background: #2a2a2a; position: relative; }
+  .media .bar i { position: absolute; left: 0; top: 0; bottom: 0; width: 38%; background: #fff; border-radius: 2px; }
+  .media .bar b { position: absolute; left: 38%; top: 50%; width: 10px; height: 10px; margin: -5px 0 0 -5px; border-radius: 50%; background: #fff; }
+  .media .tm { display: flex; justify-content: space-between; margin-top: 6px; font-size: 10px; color: #8c8c8c; }
+  .media .ctl { margin-top: auto; display: flex; justify-content: center; align-items: center; gap: 22px; }
+  .media .ctl svg { width: 18px; height: 18px; fill: #fff; }
+  .media .ctl .pl { width: 44px; height: 44px; border-radius: 50%; background: #eee; display: grid; place-items: center; }
+  .media .ctl .pl svg { fill: #000; width: 16px; height: 16px; }
+</style>
+<div class="stage"><div class="phone"><div class="screen">
+  <div class="grid">
+    <div class="card" style="grid-area:1/1/7/5"><iframe src="../mascot.html?t=16:40&mem=%7B%22v%22%3A1%2C%22aff%22%3A71%2C%22pats%22%3A128%2C%22fed%22%3A23%2C%22gifts%22%3A9%2C%22jk%22%3A%5B12%2C15%2C3%5D%2C%22streak%22%3A6%7D"></iframe></div>
+    <div class="card" style="grid-area:1/5/5/9"><iframe src="../anime-clock.html?t=16:40"></iframe></div>
+    <div class="card media" style="grid-area:1/9/5/13">
+      <div class="top"><div class="art"><svg viewBox="0 0 64 64"><path d="M40 20a14 14 0 1 0 6 23 11 11 0 1 1-6-23z" fill="#fff"/><text x="17" y="52" font-size="11" fill="#fff" font-family="Yu Gothic,sans-serif" font-weight="700">月</text></svg></div>
+        <div><div class="app">SPOTIFY</div><div class="t">Lunar Lo-Fi</div><div class="a">Night Owl Radio</div></div></div>
+      <div class="bar"><i></i><b></b></div><div class="tm"><span>1:24</span><span>3:41</span></div>
+      <div class="ctl"><svg viewBox="0 0 24 24"><path d="M6 5h2v14H6zM20 5v14L9 12z"/></svg><span class="pl"><svg viewBox="0 0 24 24"><path d="M6 5h4v14H6zM14 5h4v14h-4z"/></svg></span><svg viewBox="0 0 24 24"><path d="M16 5h2v14h-2zM4 5v14l11-7z"/></svg></div>
+    </div>
+    <div class="card" style="grid-area:5/5/7/13"><iframe src="../sys-strip.html"></iframe></div>
+  </div>
+  <div class="dots"><i class="on"></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
+</div></div></div>

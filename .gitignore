@@ -12,3 +12,6 @@ settings.backup.json
 
 # local Claude Code config (preview server launcher)
 .claude/
+
+# your own addresses (see phonebox/config.example.json)
+phonebox/config.json

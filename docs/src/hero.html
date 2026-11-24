@@ -1,0 +1,81 @@
+<!doctype html><meta charset="utf-8"><title>hero</title>
+<style>html, body { margin: 0; background: #222; } pre { display: none; }</style>
+<div id="view"></div>
+<pre id="out"></pre>
+<script src="tsuki.js"></script>
+<script>
+  // Builds docs/img/hero.svg: a banner with Tsuki cycling through her moods. The rig draws every variant of a face and
+  // hides the unused ones with CSS; here each frame keeps only what is visible, so the file stays small, and the frames
+  // take turns through a stepped CSS animation (no script: GitHub shows SVGs as images).
+  var NS = 'http://www.w3.org/2000/svg', W = 1280, H = 440, STEP = 1.3;
+  var FRAMES = [
+    ['normal', 'cross', 'フン'], ['smug', 'hips', 'ふふん'], ['shy', 'shy', 'ドキッ'], ['angry', 'point', 'ムッ!'],
+    ['happy', 'peace', 'キラッ'], ['love', 'heart', 'きゅん♡'], ['surprised', 'cover', 'えっ!?'], ['flustered', 'cover', 'あわわ'],
+    ['sleep', 'hold', 'すやすや', 'cap', 'pj']
+  ];
+  var JP = '"Noto Sans CJK JP","Noto Sans JP","Yu Gothic","Hiragino Sans","Meiryo",sans-serif', UI = '"Segoe UI","Helvetica Neue",Roboto,Arial,sans-serif';
+  var svg = document.createElementNS(NS, 'svg');
+  svg.setAttribute('xmlns', NS); svg.setAttribute('viewBox', '0 0 ' + W + ' ' + H); svg.setAttribute('width', W); svg.setAttribute('height', H);
+  document.getElementById('view').appendChild(svg);
+  var bg = '' +
+    '<defs><pattern id="dots" width="7" height="7" patternUnits="userSpaceOnUse"><circle cx="3.5" cy="3.5" r="1.15" fill="#fff" fill-opacity=".16"/></pattern>' +
+    '<radialGradient id="fade" cx="78%" cy="100%" r="75%"><stop offset="0" stop-color="#fff"/><stop offset="1" stop-color="#fff" stop-opacity="0"/></radialGradient>' +
+    '<mask id="toneMask"><rect width="' + W + '" height="' + H + '" fill="url(#fade)"/></mask>' +
+    '<clipPath id="card"><rect width="' + W + '" height="' + H + '" rx="28"/></clipPath></defs>' +
+    '<g clip-path="url(#card)"><rect width="' + W + '" height="' + H + '" fill="#000"/>' +
+    '<rect width="' + W + '" height="' + H + '" fill="url(#dots)" mask="url(#toneMask)"/>' +
+    '<g stroke="#fff" stroke-opacity=".07" stroke-width="2">' + rays(1010, 250) + '</g>' +
+    '<text x="1250" y="430" text-anchor="end" font-family=\'' + JP + '\' font-weight="900" font-size="300" fill="none" stroke="#fff" stroke-opacity=".12" stroke-width="2">月</text></g>' +
+    '<rect x=".75" y=".75" width="' + (W - 1.5) + '" height="' + (H - 1.5) + '" rx="27.5" fill="none" stroke="#2c2c2c" stroke-width="1.5"/>' +
+    // text block
+    '<g font-family=\'' + UI + '\'>' +
+    '<rect x="64" y="70" width="58" height="30" rx="4" fill="#fff"/><text x="93" y="92" text-anchor="middle" font-family=\'' + JP + '\' font-weight="800" font-size="19" fill="#000">ツキ</text>' +
+    '<text x="136" y="92" font-size="16" letter-spacing="4" fill="#8f8f8f" font-weight="600">PHONEBOX × TSUKI</text>' +
+    '<text x="62" y="172" font-size="60" font-weight="800" fill="#fff" letter-spacing="-1.5">An old phone,</text>' +
+    '<text x="62" y="240" font-size="60" font-weight="800" fill="#fff" letter-spacing="-1.5">a tsundere roommate.</text>' +
+    '<text x="64" y="292" font-size="21" fill="#a8a8a8">A Redmi A5 as a laptop remote, with an original mascot who reacts,</text>' +
+    '<text x="64" y="321" font-size="21" fill="#a8a8a8">remembers you, plays, keeps you focused, and sleeps at night.</text>' +
+    chips(64, 360, ['26 moods', '14 daytime activities', 'asleep from 20:00', 'remembers you', 'Redmi A5 friendly']) + '</g>';
+  svg.innerHTML = bg;
+  function rays(cx, cy) {
+    var s = '';
+    for (var i = 0; i < 48; i++) { var a = i / 48 * Math.PI * 2, r1 = 190, r2 = 700; s += '<path d="M' + (cx + Math.cos(a) * r1).toFixed(0) + ' ' + (cy + Math.sin(a) * r1).toFixed(0) + 'L' + (cx + Math.cos(a) * r2).toFixed(0) + ' ' + (cy + Math.sin(a) * r2).toFixed(0) + '"/>'; }
+    return s;
+  }
+  function chips(x, y, list) {
+    var s = '';
+    list.forEach(function (t) { var w = t.length * 7.7 + 24; s += '<rect x="' + x + '" y="' + y + '" width="' + w.toFixed(0) + '" height="32" rx="16" fill="none" stroke="#3a3a3a"/><text x="' + (x + w / 2).toFixed(0) + '" y="' + (y + 21) + '" text-anchor="middle" font-size="15" fill="#d4d4d4">' + t + '</text>'; x += w + 10; });
+    return s;
+  }
+  // frames
+  var stageG = document.createElementNS(NS, 'g');
+  stageG.setAttribute('transform', 'translate(842 52) scale(1.55)');
+  svg.appendChild(stageG);
+  FRAMES.forEach(function (f, i) {
+    var fr = document.createElementNS(NS, 'g'); fr.setAttribute('class', 'fr');
+    var g = document.createElementNS(NS, 'g'); fr.appendChild(g); stageG.appendChild(fr);
+    Tsuki.create(g, { mood: f[0], pose: f[1], acc: f[3] || '', outfit: f[4] || '' });
+    // keep only what this frame shows
+    Array.prototype.slice.call(g.querySelectorAll('*')).forEach(function (el) {
+      if (!el.isConnected) return;
+      if (getComputedStyle(el).display === 'none') { el.remove(); return; }
+      if (el.classList && el.classList.contains('v')) el.classList.remove('v');
+    });
+    ['data-e', 'data-m', 'data-b', 'data-bl', 'data-fx', 'data-acc', 'data-outfit', 'data-pose'].forEach(function (a) { g.removeAttribute(a); });
+    var t = document.createElementNS(NS, 'text');
+    // above a ribbon, alternating sides
+    t.setAttribute('x', i % 2 ? '-46' : '150'); t.setAttribute('y', i % 2 ? '56' : '46');
+    t.setAttribute('transform', 'rotate(' + (i % 2 ? -12 : 10) + ' ' + (i % 2 ? -46 : 150) + ' 50)');
+    t.setAttribute('style', 'font-family:' + JP + ';font-weight:900;font-size:27px;fill:#000;stroke:#fff;stroke-width:1.5px;paint-order:stroke');
+    t.textContent = f[2]; fr.appendChild(t);
+  });
+  // only the base classes of the rig are needed now (the slot rules worked on the attributes removed above)
+  var base = document.getElementById('tk-css').textContent.split('\n').filter(function (r) { return !/data-|\.v\{|cat-/.test(r); }).join('\n');
+  var total = (FRAMES.length * STEP).toFixed(1), pct = (100 / FRAMES.length).toFixed(3);
+  var css = base + '\n.fr{opacity:0;animation:fr ' + total + 's step-end infinite}\n@keyframes fr{0%{opacity:1}' + pct + '%{opacity:0}100%{opacity:0}}\n' +
+    FRAMES.map(function (_, i) { return '.fr:nth-of-type(' + (i + 1) + '){animation-delay:' + (i * STEP).toFixed(1) + 's}'; }).join('\n') +
+    '\n@media (prefers-reduced-motion:reduce){.fr{animation:none}.fr:nth-of-type(1){opacity:1}}';
+  var style = document.createElementNS(NS, 'style'); style.textContent = css; svg.insertBefore(style, svg.firstChild);
+  var title = document.createElementNS(NS, 'title'); title.textContent = 'PhoneBox × Tsuki: Tsuki cycling through her moods'; svg.insertBefore(title, svg.firstChild);
+  document.getElementById('out').textContent = '<?xml version="1.0" encoding="UTF-8"?>\n' + new XMLSerializer().serializeToString(svg);
+</script>

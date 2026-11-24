@@ -1,0 +1,35 @@
+<!doctype html><meta charset="utf-8"><title>scenes</title>
+<link rel="stylesheet" href="mockup.css">
+<style>
+  /* each cell is the idle screen (820 x 360) cropped to its scene and scaled down */
+  .wrap { padding: 28px 30px 30px; display: grid; gap: 22px 18px; justify-content: center; }
+  .cell { display: flex; flex-direction: column; align-items: center; }
+  .win { position: relative; overflow: hidden; border-radius: 16px; box-shadow: 0 0 0 1px #2c2c2c, 0 14px 30px -12px rgba(0, 0, 0, .6); background: #000; }
+  .win iframe { position: absolute; width: 820px; height: 360px; border: 0; transform-origin: 0 0; }
+  .cap { margin-top: 10px; font-size: 14px; color: #bdbdbd; letter-spacing: .01em; }
+  .cap span { margin-left: .5em; color: #7a7a7a; font-family: "Yu Gothic", "Noto Sans JP", sans-serif; }
+  .cap b { font-weight: 600; color: #e6e6e6; }
+</style>
+<div class="sheet"><div class="wrap" id="wrap"></div></div>
+<script>
+  // ?set=day | night. Day crops the slanted scene panel, night the right part of the sky.
+  var DAY = [
+    ['read', 'читает мангу', '読書中', '10:30'], ['tea', 'пьёт чай', '休憩中', '16:20'], ['game', 'играет', 'ゲーム中', '12:40'],
+    ['eat', 'ест онигири', 'もぐもぐ', '13:05'], ['music', 'слушает музыку', '音楽中', '18:30'], ['draw', 'рисует', 'お絵描き', '11:15'],
+    ['laptop', 'за ноутбуком', '作業中', '15:10'], ['plant', 'поливает цветок', '水やり', '09:40'], ['knit', 'вяжет шарф', '編み物中', '17:00'],
+    ['phone', 'листает телефон', 'スマホ', '19:10'], ['cat', 'гладит Моти', 'モチと', '12:00'], ['study', 'учится', '勉強中', '10:50'],
+    ['stretch', 'потягивается (утро)', 'のび~', '08:10'], ['siesta', 'дремлет (после обеда)', 'お昼寝', '14:20']
+  ];
+  var NIGHT = [['hug', 'с подушкой', 'すやすや', '23:40'], ['desk', 'уснула за столом', '寝落ち', '22:15'], ['futon', 'на футоне', 'ぐっすり', '01:30']];
+  var night = new URLSearchParams(location.search).get('set') === 'night', list = night ? NIGHT : DAY;
+  var cw = night ? 520 : 470, ch = night ? 330 : 340, sx = night ? -300 : -336, sy = night ? -14 : -10, k = night ? .62 : .6;
+  var wrap = document.getElementById('wrap');
+  wrap.style.gridTemplateColumns = 'repeat(' + (night ? 3 : 4) + ', ' + Math.round(cw * k) + 'px)';
+  list.forEach(function (a) {
+    var c = document.createElement('div'); c.className = 'cell';
+    c.innerHTML = '<div class="win" style="width:' + Math.round(cw * k) + 'px;height:' + Math.round(ch * k) + 'px"><iframe src="../idle.html?t=' + a[3] + '&act=' + a[0] +
+      '" style="left:' + (sx * k) + 'px;top:' + (sy * k) + 'px;transform:scale(' + k + ')"></iframe></div><div class="cap"><b>' + a[1] + '</b><span>' + a[2] + '</span></div>';
+    wrap.appendChild(c);
+  });
+  if (!night) { var last = wrap.children.length % 4; if (last) wrap.children[wrap.children.length - last].style.gridColumnStart = 2; }
+</script>

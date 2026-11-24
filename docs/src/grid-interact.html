@@ -1,0 +1,35 @@
+<!doctype html><meta charset="utf-8"><title>interactions</title>
+<link rel="stylesheet" href="mockup.css">
+<style>
+  .wrap { padding: 26px 30px 32px; display: grid; grid-template-columns: repeat(3, 264px); gap: 24px 22px; justify-content: center; }
+  .cell { display: flex; flex-direction: column; align-items: center; }
+  .card { width: 264px; height: 336px; box-shadow: 0 14px 30px -12px rgba(0, 0, 0, .6); }
+  .cap { margin-top: 11px; font-size: 14px; color: #bdbdbd; } .cap b { color: #e8e8e8; font-weight: 600; }
+</style>
+<div class="sheet"><div class="wrap" id="wrap"></div></div>
+<script>
+  // The Главная tile six times, each driven into one state through its own functions (same origin in the preview).
+  // today's key as the tile writes it, so the visit streak is not reset by "a new day"
+  var d = new Date(), today = d.getFullYear() + '-' + (d.getMonth() + 1) + '-' + d.getDate();
+  var MEM = encodeURIComponent(JSON.stringify({ v: 1, aff: 82, pats: 128, fed: 23, gifts: 9, jk: [12, 15, 3], streak: 6, days: 37, day: today,
+    first: Date.now() - 37 * 86400000, focus: { until: 0, len: 25, rest: 0, done: 2, day: today } }));
+  // [title, caption, action, delay after load in ms]: the capture happens at ~4.5 s (render.py), so the head pat starts
+  // late enough for its hearts to be still floating, the rest early enough to have finished their little sequences
+  var CELLS = [
+    ['Гладить', 'держи палец на голове', function (w) { w.pat(); w.pat(); }, 3300],
+    ['Щёки', 'ぷに', function (w) { w.tap('cheek', { x: 70, y: 146 }); }, 2600],
+    ['Угостить', 'клубника — любимая', function (w) { w.feed(w.FOOD[0]); }, 900],
+    ['Подарок', 'любовное письмо', function (w) { w.gift(w.GIFTS[4]); }, 1400],
+    ['じゃんけん', 'камень-ножницы-бумага', function (w) { w.Math.random = function () { return 0; }; w.janken('scissors'); }, 1400],
+    // online = true: the preview has no memory server, and the notebook would say so
+    ['Дневник', 'тап по сердечкам', function (w) { w.online = true; w.document.getElementById('aff').click(); }, 1400]
+  ];
+  var wrap = document.getElementById('wrap');
+  CELLS.forEach(function (c, i) {
+    var d = document.createElement('div'); d.className = 'cell';
+    d.innerHTML = '<div class="card"><iframe src="../mascot.html?t=16:40&mem=' + MEM + '"></iframe></div><div class="cap"><b>' + c[0] + '</b> · ' + c[1] + '</div>';
+    wrap.appendChild(d);
+    var f = d.querySelector('iframe');
+    f.addEventListener('load', function () { setTimeout(function () { try { c[2](f.contentWindow); } catch (e) { console.error(e); } }, c[3]); });
+  });
+</script>

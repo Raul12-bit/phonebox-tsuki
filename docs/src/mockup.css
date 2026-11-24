@@ -1,0 +1,23 @@
+/* Shared look of the README images: a Redmi A5 in landscape (820 x 360 CSS px screen, like the real one at 2x),
+   on a transparent background so the picture sits well on GitHub's light and dark themes. */
+html, body { margin: 0; background: transparent; }
+body { font-family: "Segoe UI", system-ui, sans-serif; color: #d8d8d8; -webkit-font-smoothing: antialiased; }
+.stage { padding: 34px 40px 46px; display: inline-block; }
+.phone { position: relative; width: 820px; height: 360px; padding: 15px 17px; border-radius: 46px; background: #060606;
+         box-shadow: 0 0 0 1.5px #2e2e2e, 0 0 0 5px #0b0b0b, 0 0 0 6px #262626, 0 34px 60px -22px rgba(0, 0, 0, .7), 0 12px 28px rgba(0, 0, 0, .35); }
+.phone::before { content: ""; position: absolute; left: 6px; top: 50%; width: 7px; height: 7px; margin-top: -3.5px; border-radius: 50%;
+                 background: #121212; box-shadow: inset 0 0 0 1.4px #222; }
+.screen { position: relative; width: 820px; height: 360px; border-radius: 30px; overflow: hidden; background: #000; }
+.screen iframe, .screen img { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; display: block; }
+/* the PhoneBox panel around the tiles: 12 x 6 grid, cards, page dots */
+.grid { position: absolute; left: 12px; right: 12px; top: 12px; bottom: 34px; display: grid; grid-template-columns: repeat(12, 1fr);
+        grid-template-rows: repeat(6, 1fr); gap: 10px; }
+.card { position: relative; border: 1px solid #2a2a2a; border-radius: 22px; overflow: hidden; background: #000; }
+.card iframe { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; }
+.dots { position: absolute; left: 0; right: 0; bottom: 11px; display: flex; justify-content: center; align-items: center; gap: 11px; }
+.dots i { width: 6px; height: 6px; border-radius: 50%; background: #3a3a3a; }
+.dots i.on { width: 22px; border-radius: 6px; background: #e8e8e8; }
+.label { margin-top: 26px; text-align: center; font-size: 15px; letter-spacing: .02em; color: #8a8a8a; }
+/* galleries sit on their own dark card (like the hero banner), so their captions read on light and dark themes alike */
+.sheet { display: inline-block; margin: 14px; background: #0a0a0a; border-radius: 28px;
+         box-shadow: 0 0 0 1px #262626, 0 24px 50px -26px rgba(0, 0, 0, .6); }

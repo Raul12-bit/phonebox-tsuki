@@ -25,7 +25,7 @@ interface, the mascot Tsuki, a live view of the laptop screen, and RustDesk for 
   Spotify, Beeline TV/Music and Steam Link. They are not deleted; their data stays.
   - Bring them back: `powershell -ExecutionPolicy Bypass -File phonebox/phone/apps.ps1 -On`
   - Switch them off again: `... -Off`
-- Untouched: banks, 2FA (Authy, 2FA, Steam Guard), WhatsApp, Telegram, Tailscale, RustDesk.
+- Untouched: banking and 2FA apps, messengers, Tailscale, RustDesk.
 
 ## Tsuki (ツキ)
 
@@ -83,10 +83,10 @@ until the panel reloads (her notebook says so).
 ## The idle screen (Заставка)
 
 `tiles/idle.html`, a full-screen page. It is the panel's `homePage`, so it turns on by itself after 5 minutes without
-a touch (`IDLE_AFTER_SEC` in `apply.py`), with the phone's «Back» key, and with the button on the clock tile.
+a touch (`idle_after_sec` in `config.json`), with the phone's «Back» key, and with the button on the clock tile.
 A tap: Tsuki reacts and the panel returns to «Главная» (the first touch is never swallowed: it reacts on finger-down).
 
-- **Day** (07:00–20:00, `NIGHT_TO` / `NIGHT_FROM` in `apply.py`): a manga page of three panels. Clock and date;
+- **Day** (07:00–20:00, `night_to` / `night_from` in `config.json`): a manga page of three panels. Clock and date;
   weather, sunset and «Цуки сейчас: …»; and a room scene with a window onto the Alatau. The window follows the real
   sunrise and sunset of the day (sun, sunset, or moon and stars after dark). The wall calendar and the wall clock show
   the real date and time.
@@ -147,7 +147,9 @@ The phone starts on «Главная»; after 5 minutes without a touch it shows
 
 - `apply.py` builds every page and button and writes them into PhoneBox. Run it again after edits:
   `python -I -X utf8 phonebox/apply.py` (check without saving: `--dry-run`).
-  - `NIGHT_FROM` / `NIGHT_TO` (20:00 / 07:00) and `IDLE_AFTER_SEC` (300) at the top set the idle screen.
+  - Your own values live in `config.json` (git-ignored; copy `config.example.json`): `screen_base` (the screen
+    server's `tailscale serve` address), the weather location, `night_from` / `night_to` (20:00 / 07:00) and
+    `idle_after_sec` (300).
   - `--preview` writes every tile, assembled exactly as the phone gets it but fed with sample data, to
     `phonebox/preview/` (git-ignored). No agent needed. Open `preview/index.html`; on a tile's URL, `?t=21:30` sets
     the time, `?act=read` (or `futon`, `desk`, `hug`, ...) picks the idle scene, `?focus=18` fakes a running focus
@@ -166,13 +168,15 @@ The phone starts on «Главная»; after 5 minutes without a touch it shows
   - `anime-clock.html`: clock with kanji, daylight and weather
   - `screen.html`: the laptop screen
   - `screen-button.html`: the «Экран ноутбука» button
+- `../docs/render.py` re-renders the README images from the tiles (headless Edge or Chrome; `--device` also takes
+  the phone's current screen over adb).
 - `screen-server/` holds the screen server (C#, built by the compiler that ships with Windows) and its installer, which
   also registers the keepalive task: `powershell -ExecutionPolicy Bypass -File phonebox/screen-server/install.ps1`.
 
 ## How the «Экран» page works
 
 `ScreenServer.exe` (v2) listens only on `127.0.0.1:8790` and takes a snapshot only when the phone asks for one.
-`tailscale serve` publishes it as `https://<laptop>.<tailnet>.ts.net`, which is reachable only from your own Tailscale
+`tailscale serve` publishes it as `https://<laptop>.<tailnet>.ts.net` (`screen_base` in `config.json`), which is reachable only from your own Tailscale
 devices, **from any network** (home Wi-Fi, another Wi-Fi, mobile data). Every request also needs the key from
 `%LOCALAPPDATA%\PhoneRemote\key.txt`.
 
@@ -195,18 +199,18 @@ The page is the whole screen: the picture in the middle, two rails at the sides.
   normal PowerShell, or through `Invoke-CimMethod Win32_Process` from the Claude app; see the last section).
 - Keystrokes cannot reach windows running as administrator (Windows blocks that); use RustDesk there.
 - It cannot see Windows' lock screen or admin (UAC) prompts. Use RustDesk for those: open recent apps
-  (swipe up and hold) → RustDesk → `<laptop-tailscale-ip>`.
+  (swipe up and hold) → RustDesk → the laptop's Tailscale IP.
 
 ## Working from anywhere
 
-Nothing on the laptop needs port forwarding: both PhoneBox (`<laptop-tailscale-ip>:8766`) and the screen go through Tailscale.
+Nothing on the laptop needs port forwarding: both PhoneBox (`<laptop Tailscale IP>:8766`) and the screen go through Tailscale.
 
 - Phone: Tailscale is the **Always-on VPN** (`always_on_vpn_app=com.tailscale.ipn`, checked with adb). Tailscale and
   PhoneBox are exempt from Doze (`dumpsys deviceidle whitelist`).
 - The phone has no SIM, so "another network" means another Wi-Fi (a hotspot, school, a friend's). On 24.11 it was paired
   again from the laptop (`/api/pair/start` + `adb shell am start -d <link>`), so it now knows both addresses:
-  `<laptop-lan-ip>` and `<laptop-tailscale-ip>`. It tries them in turn (1.5 s each). Checked from the phone: `nc` reaches
-  <laptop-tailscale-ip>:8766 (agent) and :443 (screen) through `tun1`. Not tried yet: actually being on another Wi-Fi.
+  the LAN address and the Tailscale address. It tries them in turn (1.5 s each). Checked from the phone: `nc` reaches
+  the Tailscale address on :8766 (agent) and :443 (screen) through `tun1`. Not tried yet: actually being on another Wi-Fi.
 - Laptop: Tailscale runs unattended (`ForceDaemon: true`), `tailscale serve` is saved.
 - The laptop must be awake: on mains it never sleeps; **on battery it sleeps after 10 minutes**, and then nothing
   reaches it until it wakes up.
@@ -293,4 +297,4 @@ was moved to the real folders.
   (`Unregister-ScheduledTask 'PhoneRemote Keepalive'`) and the `%LOCALAPPDATA%\PhoneRemote` folder; `tailscale serve reset`.
 - PhoneBox: `scripts/uninstall.ps1` from its repository, or Settings › Apps.
 - The settings from before the latest `apply.py` run are in `%LOCALAPPDATA%\PhoneRemote\settings.backup.json`
-  (kept out of this folder on purpose: they contain the Wi-Fi pairing key, and the Desktop syncs to OneDrive).
+  (kept out of this folder on purpose: they contain the Wi-Fi pairing key, and a project folder may be synced or published).

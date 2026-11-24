@@ -1,0 +1,12 @@
+{
+  "_help": "Copy to config.json (git-ignored) and put your own values there; keys missing from config.json come from this file.",
+  "_screen_base": "Your laptop's `tailscale serve` address, e.g. https://my-laptop.my-tailnet.ts.net. Empty: no «Экран» picture, Tsuki remembers only until the panel reloads.",
+  "screen_base": "",
+  "_weather": "Where the weather (clock, idle screen, Tsuki's remarks) is for. Open-Meteo, no key needed.",
+  "weather": { "city": "Алматы", "lat": 43.2389, "lon": 76.8897 },
+  "_night": "Tsuki sleeps on the idle screen between night_from and night_to (24 h, HH:MM).",
+  "night_from": "20:00",
+  "night_to": "07:00",
+  "_idle_after_sec": "Seconds without a touch before the idle screen comes up.",
+  "idle_after_sec": 300
+}

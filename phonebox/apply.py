@@ -1,13 +1,15 @@
-"""Applies the personal black-and-white PhoneBox layout through the local agent API (http://127.0.0.1:8765).
+"""Applies the black-and-white PhoneBox layout with Tsuki through the local agent API (http://127.0.0.1:8765).
 
 Run:  python -I -X utf8 phonebox/apply.py [--dry-run | --preview]
 Safe to re-run: it rebuilds pages/shortcuts from this file and keeps every other setting as it is.
 --preview writes every tile, assembled exactly as the phone gets it but fed with sample data, to phonebox/preview/
 (open preview/index.html; add ?t=21:30 to a tile's URL to see it at another time of day). Needs no agent.
 A copy of the settings before the change is written to %LOCALAPPDATA%\\PhoneRemote\\settings.backup.json
-(not next to this script: it contains the Wi-Fi pairing key and this folder is synced by OneDrive).
+(not next to this script: it contains the Wi-Fi pairing key, and a project folder may be synced or published).
 
-The "Экран" page needs the screen server (screen-server/install.ps1) and `tailscale serve` (see README.md).
+Your own values (the screen server's address, the weather location, the night hours) live in config.json next to this
+script, which git ignores; config.example.json shows every key. The "Экран" page and Tsuki's memory need the screen
+server (screen-server/install.ps1) and `tailscale serve` (see README.md).
 """
 from __future__ import annotations
 
@@ -20,12 +22,27 @@ from pathlib import Path
 
 AGENT = "http://127.0.0.1:8765"
 HERE = Path(__file__).resolve().parent
-SCREEN_BASE = "https://<laptop>.<tailnet>.ts.net"  # `tailscale serve` -> 127.0.0.1:8790 (tailnet devices only)
 SCREEN_KEY_FILE = Path(os.environ.get("LOCALAPPDATA", "")) / "PhoneRemote" / "key.txt"
+
+
+def load_config() -> dict:
+    """config.example.json overlaid with config.json (git-ignored: it holds your own addresses)."""
+    cfg = json.loads((HERE / "config.example.json").read_text(encoding="utf-8"))
+    local = HERE / "config.json"
+    if local.exists():
+        mine = json.loads(local.read_text(encoding="utf-8"))
+        cfg.update({k: ({**cfg[k], **v} if isinstance(v, dict) and isinstance(cfg.get(k), dict) else v) for k, v in mine.items()})
+    return {k: v for k, v in cfg.items() if not k.startswith("_")}
+
+
+CONFIG = load_config()
+# `tailscale serve` -> 127.0.0.1:8790, reachable from your tailnet devices only. Empty: no «Экран» picture, and Tsuki
+# remembers only until the panel reloads.
+SCREEN_BASE = CONFIG["screen_base"].rstrip("/")
 # The idle screen (the panel's home page after IDLE_AFTER_SEC without a touch): between NIGHT_FROM and NIGHT_TO Tsuki
 # sleeps under a night clock, the rest of the day she is busy with something (a different activity every time it opens).
-NIGHT_FROM, NIGHT_TO = "20:00", "07:00"
-IDLE_AFTER_SEC = 300
+NIGHT_FROM, NIGHT_TO = CONFIG["night_from"], CONFIG["night_to"]
+IDLE_AFTER_SEC = int(CONFIG["idle_after_sec"])
 # The agent only returns/accepts the full settings for same-origin requests from its own settings page.
 SAME_ORIGIN = {"Sec-Fetch-Site": "same-origin", "Sec-Fetch-Mode": "cors", "Sec-Fetch-Dest": "empty", "Origin": AGENT}
 
@@ -266,7 +283,7 @@ PREVIEW_DATA = {
                      "gpu": {"util": 12, "temp": 46, "power": 7.4, "vramUsed": 0.4, "vramTotal": 4, "clock": 622},
                      "netDownBps": 182000, "netUpBps": 24000, "uptimeSec": 190000,
                      "disks": [{"name": "C:", "usedGb": 446, "totalGb": 476}]},
-              "media": {"app": "Spotify", "title": "Idol", "artist": "YOASOBI", "playing": True},
+              "media": {"app": "Spotify", "title": "Lunar Lo-Fi", "artist": "Night Owl Radio", "playing": True},
               "ping": {"ms": 34, "lossPct": 0}},
     "weather": {"current": {"temperature_2m": -3.4, "apparent_temperature": -8.1, "weather_code": 71, "is_day": 1},
                 "daily": {"weather_code": [71, 3], "temperature_2m_max": [-1, 2], "temperature_2m_min": [-9, -6],
@@ -366,16 +383,19 @@ def main() -> int:
     screen_key = SCREEN_KEY_FILE.read_text(encoding="ascii").strip() if SCREEN_KEY_FILE.exists() else ""
     if not screen_key:
         print("warning: no screen-server key yet (run screen-server/install.ps1); the Экран page will show 'no picture'")
+    if not SCREEN_BASE:
+        print("warning: no screen_base in config.json; the Экран page will show 'no picture' and Tsuki forgets on reload")
     _, hdr, raw = request("GET", "/api/settings")
     version = hdr.get("X-Config-Version")
     cfg = json.loads(raw)
-    # The backup holds secrets (Wi-Fi pairing key): keep it out of the project folder, which OneDrive syncs.
+    # The backup holds secrets (Wi-Fi pairing key): keep it out of the project folder (synced, possibly published).
     SCREEN_KEY_FILE.parent.mkdir(parents=True, exist_ok=True)
     (SCREEN_KEY_FILE.parent / "settings.backup.json").write_bytes(raw)
 
-    cfg["weather"].update(city="Алматы", lat=43.2389, lon=76.8897, unit="celsius")
+    w = CONFIG["weather"]
+    cfg["weather"].update(city=w["city"], lat=float(w["lat"]), lon=float(w["lon"]), unit="celsius")
     d = cfg["display"]
-    # The phone starts on the first page («Главная»); after 5 minutes without a touch it goes to the night page.
+    # The phone starts on the first page («Главная»); after IDLE_AFTER_SEC without a touch it shows the idle page.
     # PhoneBox's own night clock is off (it would cover Tsuki). Dimming is off too: a dimmed panel swallows the first
     # touch (it only brightens), then the night page takes the second one, and that read as "the phone doesn't react".
     cfg["night"]["enabled"] = False

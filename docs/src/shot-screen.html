@@ -1,0 +1,9 @@
+<!doctype html><meta charset="utf-8"><title>screen</title>
+<link rel="stylesheet" href="mockup.css">
+<div class="stage"><div class="phone"><div class="screen" id="screen"></div></div></div>
+<script>
+  // ?src=<tile url> renders a full-screen tile in the phone; ?img=<png> puts a real screenshot of the phone in it
+  var q = new URLSearchParams(location.search), s = document.getElementById('screen');
+  if (q.get('img')) s.innerHTML = '<img alt="" src="' + q.get('img') + '">';
+  else s.innerHTML = '<iframe src="' + q.get('src') + '"></iframe>';
+</script>
