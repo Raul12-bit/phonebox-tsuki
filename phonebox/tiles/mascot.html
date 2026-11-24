@@ -1,271 +1,647 @@
 <style>
-  :root { --ink: #0b0b0b; --mut: #8c8c8c; }
+  :root { --mut: #8c8c8c; --line: #ffffff33; }
+  * { box-sizing: border-box; }
   html, body { background: transparent; }
-  body { position: relative; height: 100vh; overflow: hidden; display: flex; flex-direction: column; align-items: center;
-         -webkit-tap-highlight-color: transparent; user-select: none; -webkit-user-select: none; touch-action: none;
-         font-family: Roboto, system-ui, sans-serif; }
-  .jp { font-family: "Noto Sans CJK JP", "Noto Sans JP", sans-serif; }
-  /* manga layers */
+  body { position: relative; height: 100vh; overflow: hidden; display: flex; flex-direction: column; align-items: center; margin: 0;
+         -webkit-tap-highlight-color: transparent; user-select: none; -webkit-user-select: none; touch-action: manipulation;
+         font-family: Roboto, system-ui, sans-serif; color: #fff; }
+  button { font: inherit; color: inherit; background: none; border: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+  button:focus-visible { outline: 2px solid #fff; outline-offset: 2px; }
+  .jp { font-family: "Noto Sans CJK JP", "Noto Sans JP", "Yu Gothic", sans-serif; }
+  /* manga layers: screentone at the feet, speed lines when she is angry, a soft halo when she is happy */
   .tone { position: absolute; inset: 0; pointer-events: none; background: radial-gradient(circle, #ffffff22 1.1px, transparent 1.4px) 0 0 / 7px 7px;
-          -webkit-mask-image: linear-gradient(to top, #000, transparent 60%); mask-image: linear-gradient(to top, #000, transparent 60%); }
-  .speed { position: absolute; inset: -10%; pointer-events: none; opacity: 0; transition: opacity .35s;
-           background: repeating-conic-gradient(from 0deg at 50% 58%, #fff0 0deg 4.2deg, #ffffff2a 4.2deg 5deg);
-           -webkit-mask-image: radial-gradient(circle at 50% 58%, transparent 30%, #000 72%); mask-image: radial-gradient(circle at 50% 58%, transparent 30%, #000 72%); }
-  .glow { position: absolute; left: 50%; top: 58%; width: 80%; aspect-ratio: 1; transform: translate(-50%, -50%); border-radius: 50%; pointer-events: none;
-          background: radial-gradient(circle, #ffffff12, transparent 65%); opacity: 0; transition: opacity .6s; }
-  body.m-angry .speed { opacity: 1; }
-  body.m-shy .glow, body.m-happy .glow, body.m-pat .glow { opacity: 1; }
+          -webkit-mask-image: linear-gradient(to top, #000 0%, transparent 55%); mask-image: linear-gradient(to top, #000 0%, transparent 55%); }
+  .speed { position: absolute; inset: -10%; pointer-events: none; display: none;
+           background: repeating-conic-gradient(from 0deg at 50% 52%, #fff0 0deg 4.2deg, #ffffff26 4.2deg 5deg);
+           -webkit-mask-image: radial-gradient(circle at 50% 52%, transparent 32%, #000 74%); mask-image: radial-gradient(circle at 50% 52%, transparent 32%, #000 74%); }
+  .glow { position: absolute; left: 50%; top: 52%; width: 92%; aspect-ratio: 1; transform: translate(-50%, -50%); border-radius: 50%; pointer-events: none; display: none;
+          background: radial-gradient(circle, #ffffff16, transparent 64%); }
+  body.fx-speed .speed, body.fx-glow .glow { display: block; }
   /* speech bubble */
-  .bubble { position: relative; z-index: 3; margin: 3.6vh 5% 0; align-self: stretch; min-height: 15.5vh; box-sizing: border-box; padding: 2.4vh 4.5% 2vh;
-            border: 1.6px solid #fff; border-radius: 20px; background: #000; font-size: 3.55vh; line-height: 1.42; color: #fff; transform-origin: 50% 100%; }
-  .bubble::after { content: ""; position: absolute; left: 50%; bottom: -8px; width: 13px; height: 13px; margin-left: -6.5px; background: #000;
+  .bubble { position: relative; z-index: 3; flex: none; margin: 3.4vh 4.5% 0; align-self: stretch; min-height: 16vh; padding: 2.6vh 4.5% 2vh;
+            border: 1.6px solid #fff; border-radius: 18px; background: #000; font-size: 3.7vh; line-height: 1.4; transform-origin: 50% 100%; }
+  .bubble::after { content: ""; position: absolute; left: 50%; bottom: -7px; width: 12px; height: 12px; margin-left: -6px; background: #000;
                    border-right: 1.6px solid #fff; border-bottom: 1.6px solid #fff; transform: rotate(45deg); }
-  .bubble.shout { border-width: 2.6px; border-radius: 9px; }
+  .bubble.shout { border-width: 2.6px; border-radius: 8px; }
   .bubble.soft { border-style: dashed; }
-  .bubble.pop { animation: pop .42s cubic-bezier(.3, 1.6, .5, 1); }
-  .who, .aff { position: absolute; top: -1.5vh; padding: 0 6px; background: #000; font-size: 2.3vh; letter-spacing: .16em; color: var(--mut); line-height: 3vh; }
-  .who { left: 14px; } .aff { right: 12px; display: flex; align-items: center; gap: 4px; letter-spacing: .05em; }
-  .aff svg { width: 2.5vh; height: 2.5vh; } .aff path { fill: none; stroke: #fff; stroke-width: 2.2; } .aff .f path { fill: #fff; } .aff .h path { fill: #ffffff66; }
+  .bubble.pop { animation: pop .38s cubic-bezier(.3, 1.6, .5, 1); }
+  .who { position: absolute; top: -1.6vh; left: 12px; padding: 0 6px; background: #000; font-size: 2.4vh; letter-spacing: .16em; color: var(--mut); line-height: 3.2vh; }
+  .aff { position: absolute; top: -1.9vh; right: 10px; padding: 0 6px; background: #000; display: flex; align-items: center; gap: 3px; line-height: 3.6vh; color: var(--mut);
+         font-size: 2.3vh; letter-spacing: .04em; }
+  .aff svg { width: 2.6vh; height: 2.6vh; } .aff path { fill: none; stroke: #fff; stroke-width: 2.2; } .aff .f path { fill: #fff; } .aff .h path { fill: #ffffff66; }
   .aff.bump { animation: bump .5s cubic-bezier(.3, 1.6, .5, 1); }
+  #say { min-height: 2.8em; }
+  #say b { font-weight: 600; }
+  .choices { display: flex; gap: 2.4%; margin-top: 1.4vh; }
+  .choices:empty { display: none; }
+  .choices button { flex: 1; min-height: 6.4vh; padding: .6vh 2%; border: 1.4px solid #fff; border-radius: 99px; font-size: 3.1vh; font-weight: 600; letter-spacing: .02em; }
+  .choices button:first-child { background: #fff; color: #000; }
+  .choices button:active { transform: scale(.95); }
+  .jk { display: flex; align-items: center; justify-content: center; gap: 4%; margin: .4vh 0 .6vh; font-size: 2.6vh; color: var(--mut); letter-spacing: .1em; }
+  .jk svg { width: 8vh; height: 8vh; } .jk path, .jk circle { fill: none; stroke: #fff; stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; }
+  .jk .vs { font: 800 3vh Roboto, sans-serif; color: #fff; letter-spacing: 0; }
+  .stats { display: grid; grid-template-columns: 1fr 1fr; gap: .3vh 6%; font-size: 3vh; color: var(--mut); }
+  .stats b { color: #fff; font-weight: 600; font-variant-numeric: tabular-nums; }
   /* stage + character */
-  .stage { position: relative; z-index: 1; flex: 1; width: 100%; min-height: 0; display: flex; align-items: flex-end; justify-content: center; }
-  svg.girl { height: 100%; max-width: 100%; overflow: visible; animation: breathe 4.2s ease-in-out infinite; }
+  .stage { position: relative; z-index: 1; flex: 1; width: 100%; min-height: 0; display: flex; align-items: flex-end; justify-content: center; touch-action: none; }
+  svg.girl { height: 100%; max-width: 100%; overflow: visible; }
   svg.girl.hop { animation: hop .45s cubic-bezier(.3, 1.6, .5, 1); }
   svg.girl.shake { animation: shake .4s linear; }
-  .ln { fill: var(--ink); stroke: #fff; stroke-width: 2; stroke-linejoin: round; stroke-linecap: round; }
-  .st { fill: none; stroke: #fff; stroke-width: 2; stroke-linejoin: round; stroke-linecap: round; }
-  .wh { fill: #fff; } .ink { fill: var(--ink); }
-  .head { transform-origin: 100px 168px; transition: transform .5s cubic-bezier(.3, 1.4, .5, 1); }
-  .m-shy .head, .m-pat .head { transform: rotate(-6deg); } .m-smug .head { transform: rotate(5deg); } .m-sleep .head { transform: rotate(-9deg) translateY(3px); }
-  .tailL { transform-origin: 46px 80px; animation: swayL 3.8s ease-in-out infinite; }
-  .tailR { transform-origin: 154px 80px; animation: swayR 3.8s ease-in-out infinite; }
-  .ahoge { transform-origin: 104px 36px; animation: wig 2.6s ease-in-out infinite; }
-  .eyes-open { transform-box: fill-box; transform-origin: center; animation: blink 5s infinite; }
-  .browL, .browR { transition: transform .3s; transform-box: fill-box; }
-  .browL { transform-origin: right center; } .browR { transform-origin: left center; }
-  .m-angry .browL { transform: rotate(10deg) translateY(2px); } .m-angry .browR { transform: rotate(-10deg) translateY(2px); }
-  .m-shy .browL, .m-pat .browL, .m-surprised .browL { transform: rotate(-10deg) translateY(-3px); }
-  .m-shy .browR, .m-pat .browR, .m-surprised .browR { transform: rotate(10deg) translateY(-3px); }
-  .m-surprised .iris { transform: scale(.72); transform-box: fill-box; transform-origin: center; }
-  /* which parts each mood shows */
-  [data-m] { opacity: 0; transition: opacity .2s; }
-  .m-normal [data-m~=normal], .m-angry [data-m~=angry], .m-shy [data-m~=shy], .m-happy [data-m~=happy], .m-sleep [data-m~=sleep],
-  .m-smug [data-m~=smug], .m-surprised [data-m~=surprised], .m-pat [data-m~=pat] { opacity: 1; }
-  .zzz text { fill: #fff; font: 600 13px Roboto, sans-serif; animation: float 2.6s ease-in-out infinite; }
-  .zzz text:nth-child(2) { animation-delay: .9s } .zzz text:nth-child(3) { animation-delay: 1.8s }
-  .twk { animation: twinkle 2.2s ease-in-out infinite; transform-box: fill-box; transform-origin: center; }
-  .twk:nth-of-type(2) { animation-delay: .7s } .twk:nth-of-type(3) { animation-delay: 1.4s }
+  svg.girl.squish { animation: squish .35s cubic-bezier(.3, 1.6, .5, 1); transform-origin: 50% 100%; }
+  .boing .ahoge { animation: boing .8s cubic-bezier(.3, 1.8, .4, 1); transform-origin: 104px 36px; }
+  .tug .tails { animation: tug .5s cubic-bezier(.3, 1.6, .5, 1); transform-origin: 100px 90px; }
+  .fpill { position: absolute; top: 1.2vh; right: 4%; display: none; align-items: center; gap: .5em; padding: .5vh 1.2em .5vh .9em; border: 1.3px solid #fff;
+           border-radius: 99px; background: #000; font-size: 2.9vh; font-weight: 600; font-variant-numeric: tabular-nums; letter-spacing: .04em; }
+  .fpill.on { display: flex; }
+  .fpill i { width: 1.4vh; height: 1.4vh; border-radius: 50%; background: #fff; }
+  .fpill.rest i { background: transparent; border: 1.3px solid #fff; }
+  /* sheet (food, gifts, game, focus) */
+  .sheet { position: absolute; z-index: 5; left: 3.5%; right: 3.5%; bottom: 15.5vh; padding: 2vh 3.5% 2.2vh; border: 1.5px solid #fff; border-radius: 18px;
+           background: #000; display: none; }
+  .sheet.on { display: block; animation: up .22s cubic-bezier(.2, .8, .2, 1); }
+  .sh-head { display: flex; align-items: center; gap: .6em; margin-bottom: 1.4vh; font-size: 2.6vh; letter-spacing: .14em; color: var(--mut); }
+  .sh-head .sp { flex: 1; } .sh-head button { width: 5.4vh; height: 5.4vh; border-radius: 50%; border: 1px solid var(--line); font-size: 3vh; line-height: 1; }
+  .sh-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1.4vh 3%; }
+  .sh-grid.two { grid-template-columns: 1fr 1fr; }
+  .item { display: flex; flex-direction: column; align-items: center; gap: .5vh; padding: 1vh 0 .9vh; border: 1px solid var(--line); border-radius: 14px; font-size: 2.6vh; color: #d8d8d8; }
+  .item svg { width: 9.5vh; height: 9.5vh; overflow: visible; }
+  .item:active { background: #fff; color: #000; transform: scale(.95); }
+  .item:active svg .tk, .item:active .tk { --tk-line: #000; --tk-ink: #fff; }
+  .item.big { padding: 1.6vh 0; font-size: 3vh; font-weight: 600; }
+  .item small { font-size: .85em; color: var(--mut); font-weight: 400; }
+  .item .hand path, .item .hand circle { fill: none; stroke: currentColor; stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; }
+  /* dock */
+  .dock { position: relative; z-index: 4; align-self: stretch; display: flex; justify-content: space-between; gap: 1.5%; padding: 0 3.5% 2.2vh; }
+  .dock button { flex: 1; display: flex; flex-direction: column; align-items: center; gap: .5vh; font-size: 2.55vh; letter-spacing: .02em; color: #bdbdbd; }
+  .dock .ic { width: 8.6vh; height: 8.6vh; border-radius: 50%; border: 1.3px solid var(--line); background: #050505; display: grid; place-items: center; }
+  .dock .ic svg { width: 52%; height: 52%; fill: none; stroke: #fff; stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; }
+  .dock button:active .ic, .dock button.on .ic { background: #fff; border-color: #fff; }
+  .dock button:active .ic svg, .dock button.on .ic svg { stroke: #000; }
+  .dock button.on { color: #fff; }
   /* effects */
-  .sfx { position: absolute; z-index: 4; right: 4%; top: 25vh; font: 900 8.5vh "Noto Sans CJK JP", "Noto Sans JP", sans-serif; color: #000;
-         -webkit-text-stroke: 1.6px #fff; transform: rotate(12deg); opacity: 0; pointer-events: none; }
+  .sfx { position: absolute; z-index: 4; right: 4%; top: 27vh; font: 900 8.5vh "Noto Sans CJK JP", "Noto Sans JP", "Yu Gothic", sans-serif; color: #000;
+         -webkit-text-stroke: 1.6px #fff; transform: rotate(12deg); opacity: 0; pointer-events: none; white-space: nowrap; }
   .sfx.left { right: auto; left: 4%; transform: rotate(-12deg); }
-  .sfx.show { animation: sfx 1.8s cubic-bezier(.2, .8, .2, 1) forwards; }
+  .sfx.show { animation: sfx 1.6s cubic-bezier(.2, .8, .2, 1) forwards; }
   .heart { position: absolute; z-index: 4; width: 5vh; height: 5vh; pointer-events: none; animation: heartUp 1.5s ease-out forwards; }
   .heart path { fill: #fff; }
-  @keyframes breathe { 0%, 100% { transform: translateY(0) } 50% { transform: translateY(-1.1%) } }
   @keyframes hop { 0% { transform: translateY(0) } 40% { transform: translateY(-5%) } 100% { transform: translateY(0) } }
   @keyframes shake { 0%, 100% { transform: translateX(0) } 20% { transform: translateX(-2%) } 40% { transform: translateX(2%) } 60% { transform: translateX(-1.5%) } 80% { transform: translateX(1.5%) } }
-  @keyframes swayL { 0%, 100% { transform: rotate(0) } 50% { transform: rotate(4deg) } }
-  @keyframes swayR { 0%, 100% { transform: rotate(0) } 50% { transform: rotate(-4deg) } }
-  @keyframes wig { 0%, 100% { transform: rotate(0) } 50% { transform: rotate(-9deg) } }
-  @keyframes blink { 0%, 93%, 100% { transform: scaleY(1) } 95.5% { transform: scaleY(.06) } }
-  @keyframes float { 0% { transform: translate(0, 0); opacity: 0 } 30% { opacity: 1 } 100% { transform: translate(8px, -18px); opacity: 0 } }
-  @keyframes twinkle { 0%, 100% { opacity: .15; transform: scale(.5) } 50% { opacity: 1; transform: scale(1) } }
-  @keyframes pop { 0% { transform: scale(.9); opacity: .4 } 100% { transform: scale(1); opacity: 1 } }
+  @keyframes squish { 0% { transform: scale(1, 1) } 35% { transform: scale(1.04, .95) } 100% { transform: scale(1, 1) } }
+  @keyframes boing { 0% { transform: rotate(0) } 20% { transform: rotate(-28deg) } 45% { transform: rotate(18deg) } 70% { transform: rotate(-8deg) } 100% { transform: rotate(0) } }
+  @keyframes tug { 0% { transform: translateY(0) } 35% { transform: translateY(5px) } 100% { transform: translateY(0) } }
+  @keyframes pop { 0% { transform: scale(.92); opacity: .4 } 100% { transform: scale(1); opacity: 1 } }
   @keyframes bump { 0% { transform: scale(1) } 40% { transform: scale(1.3) } 100% { transform: scale(1) } }
+  @keyframes up { from { transform: translateY(14px); opacity: 0 } to { transform: none; opacity: 1 } }
   @keyframes sfx { 0% { opacity: 0; scale: .5 } 14% { opacity: 1; scale: 1.15 } 24% { scale: 1 } 80% { opacity: 1 } 100% { opacity: 0 } }
   @keyframes heartUp { 0% { transform: translate(0, 0) scale(.4); opacity: 0 } 15% { opacity: 1; transform: translate(0, -2vh) scale(1) } 100% { transform: translate(var(--dx), -26vh) scale(.8); opacity: 0 } }
-  @media (prefers-reduced-motion: reduce) { svg.girl, .tailL, .tailR, .ahoge, .eyes-open, .zzz text, .twk, .bubble.pop, .sfx.show, .heart { animation: none !important } }
+  @media (prefers-reduced-motion: reduce) { svg.girl, .bubble.pop, .sfx.show, .heart, .sheet.on, .boing .ahoge, .tug .tails, .aff.bump { animation: none !important } }
 </style>
 <div class="tone"></div><div class="speed"></div><div class="glow"></div>
-<div class="sfx" id="sfx"></div>
-<div class="bubble" id="bubble"><span class="who"><span class="jp">ツキ</span> · ЦУКИ</span><span class="aff" id="aff"></span><span id="say">…</span></div>
-<div class="stage">
-<svg class="girl" id="girl" viewBox="0 0 200 250" aria-label="Цуки">
-  <!-- twin tails with curls -->
-  <g class="tailL"><path class="ln" d="M48 82 C22 98 14 140 22 178 C26 200 18 218 8 230 C30 228 40 212 40 190 C40 160 42 124 60 98 Z"/><path class="st" d="M8 230 C1 236 5 245 14 241"/></g>
-  <g class="tailR"><path class="ln" d="M152 82 C178 98 186 140 178 178 C174 200 182 218 192 230 C170 228 160 212 160 190 C160 160 158 124 140 98 Z"/><path class="st" d="M192 230 C199 236 195 245 186 241"/></g>
-  <!-- body: sailor uniform, arms crossed -->
-  <g>
-    <path class="ln" d="M92 160 L92 176 L108 176 L108 160 Z"/>
-    <path class="ln" d="M60 190 C64 177 136 177 140 190 L152 250 L48 250 Z"/>
-    <path class="wh" d="M70 182 L100 208 L130 182 L124 179 L100 199 L76 179 Z"/>
-    <path class="st" style="stroke:#0b0b0b;stroke-width:1.4" d="M77 186 L100 205 L123 186"/>
-    <path class="wh" d="M100 208 L89 202 L90 216 Z M100 208 L111 202 L110 216 Z"/><circle class="ink" cx="100" cy="208" r="3" stroke="#fff" stroke-width="1.4"/>
-    <rect class="ln" x="54" y="216" width="68" height="18" rx="9" transform="rotate(-7 88 225)"/>
-    <rect class="ln" x="78" y="216" width="68" height="18" rx="9" transform="rotate(7 112 225)"/>
-    <path class="st" d="M62 222 l4 -1 M134 222 l-4 -1" style="stroke-width:1.4"/>
-  </g>
-  <!-- head (tilts with mood) -->
-  <g class="head">
-    <path class="ln" d="M44 120 C38 60 70 34 100 34 C130 34 162 60 156 120 L160 176 C150 170 140 170 132 174 L128 150 L72 150 L68 174 C60 170 50 170 40 176 Z"/>
-    <ellipse class="ln" cx="100" cy="122" rx="52" ry="47"/>
-    <!-- side locks -->
-    <path class="ln" d="M50 110 C45 138 47 160 56 178 C58 158 59 136 62 118 Z"/><path class="ln" d="M150 110 C155 138 153 160 144 178 C142 158 141 136 138 118 Z"/>
-    <!-- soft bangs -->
-    <path class="ln" d="M46 118 C44 72 70 50 100 50 C130 50 156 72 154 118 C150 112 148 106 147 99 C145 107 141 112 136 115 C139 104 137 94 131 87 C129 97 124 105 117 109 C120 98 118 88 112 81 C108 91 104 97 99 101 C98 92 94 85 88 80 C84 89 82 98 83 108 C77 103 73 96 71 88 C65 95 62 104 63 114 C58 110 55 106 53 100 C51 107 48 112 46 118 Z"/>
-    <path class="st" style="stroke-width:1.1;stroke-opacity:.55" d="M100 56 C99 70 100 84 99 96 M88 60 C86 68 86 74 88 80 M112 60 C114 68 114 74 112 80 M72 70 C70 76 70 82 71 88 M128 70 C130 76 130 82 131 87"/>
-    <g class="ahoge"><path class="st" d="M102 36 C95 22 106 12 114 18 C107 18 103 23 105 35"/></g>
-    <!-- big ribbons -->
-    <g transform="translate(48 80)"><path class="wh" d="M0 0 C-11 -13 -24 -6 -17 7 C-12 13 -4 7 0 0 Z M0 0 C11 -13 24 -6 17 7 C12 13 4 7 0 0 Z"/><circle class="ink" r="3.8" stroke="#fff" stroke-width="1.6"/></g>
-    <g transform="translate(152 80)"><path class="wh" d="M0 0 C-11 -13 -24 -6 -17 7 C-12 13 -4 7 0 0 Z M0 0 C11 -13 24 -6 17 7 C12 13 4 7 0 0 Z"/><circle class="ink" r="3.8" stroke="#fff" stroke-width="1.6"/></g>
-    <!-- brows -->
-    <path class="st browL" style="stroke-width:2.4" d="M66 104 Q76 100 88 106"/><path class="st browR" style="stroke-width:2.4" d="M134 104 Q124 100 112 106"/>
-    <!-- open eyes: white sclera, dark iris, two highlights -->
-    <g class="eyes-open" data-m="normal angry happy surprised smug">
-      <ellipse class="wh" cx="79" cy="128" rx="11.5" ry="13.5"/><ellipse class="wh" cx="121" cy="128" rx="11.5" ry="13.5"/>
-      <g class="iris"><ellipse class="ink" cx="80" cy="130" rx="8.6" ry="11"/><ellipse cx="80" cy="131" rx="5.6" ry="7.4" fill="none" stroke="#fff" stroke-width=".8" stroke-opacity=".45"/>
-        <circle class="wh" cx="76.5" cy="126.5" r="3.4"/><circle class="wh" cx="83.5" cy="135" r="1.6"/></g>
-      <g class="iris"><ellipse class="ink" cx="120" cy="130" rx="8.6" ry="11"/><ellipse cx="120" cy="131" rx="5.6" ry="7.4" fill="none" stroke="#fff" stroke-width=".8" stroke-opacity=".45"/>
-        <circle class="wh" cx="116.5" cy="126.5" r="3.4"/><circle class="wh" cx="123.5" cy="135" r="1.6"/></g>
-      <path class="st" style="stroke-width:3.4" d="M66 122 Q79 108 92 120 M108 120 Q121 108 134 122"/>
-      <path class="st" style="stroke-width:2.2" d="M66 122 l-4 -3 M134 122 l4 -3"/>
-      <!-- smug half-lids -->
-      <path class="ink" data-m="smug" d="M66 129 Q79 125 92 129 L92 112 L66 112 Z M108 129 Q121 125 134 129 L134 112 L108 112 Z"/>
-      <path class="st" data-m="smug" style="stroke-width:2.6" d="M66 129 Q79 125 92 129 M108 129 Q121 125 134 129"/>
-    </g>
-    <!-- closed eyes: happy ^ ^ (shy / pat) and sleepy -->
-    <path class="st" data-m="shy pat" style="stroke-width:3" d="M68 130 Q79 118 90 130 M110 130 Q121 118 132 130"/>
-    <path class="st" data-m="sleep" style="stroke-width:2.6" d="M68 128 Q79 134 90 128 M110 128 Q121 134 132 128"/>
-    <!-- blush -->
-    <g style="opacity:.85"><ellipse cx="68" cy="146" rx="9" ry="4.5" fill="#fff" fill-opacity=".1"/><ellipse cx="132" cy="146" rx="9" ry="4.5" fill="#fff" fill-opacity=".1"/>
-      <path class="st" style="stroke-width:1.3" d="M62 148 l4 -4 M67 149 l4 -4 M72 150 l4 -4 M124 150 l4 -4 M129 149 l4 -4 M134 148 l4 -4"/></g>
-    <g data-m="shy pat"><ellipse cx="68" cy="146" rx="11" ry="6" fill="#fff" fill-opacity=".18"/><ellipse cx="132" cy="146" rx="11" ry="6" fill="#fff" fill-opacity=".18"/>
-      <path class="st" style="stroke-width:1.6" d="M60 150 l5 -6 M66 151 l5 -6 M72 152 l5 -6 M123 152 l5 -6 M129 151 l5 -6 M135 150 l5 -6"/></g>
-    <!-- mouths -->
-    <g data-m="normal"><path class="st" d="M94 154 Q100 150 106 154"/><path class="wh" d="M102.6 152.6 L104 156.2 L105.4 152.9 Z"/></g>
-    <g data-m="angry"><path class="ln" d="M91 151 Q100 163 109 151 Z"/><path class="wh" d="M103 151.5 L104.6 155.5 L106.2 152 Z"/></g>
-    <g data-m="happy shy pat"><path class="st" d="M93 152 Q100 160 107 152"/><path class="wh" d="M102.6 153.6 L104 156.8 L105.2 154 Z"/></g>
-    <path class="st" data-m="smug" d="M91 153 q4.5 4 9 0 q4.5 4 9 0"/>
-    <ellipse class="st" data-m="surprised" cx="100" cy="155" rx="3.4" ry="4.4"/>
-    <path class="st" data-m="sleep" d="M96 154 h8"/>
-    <!-- extras -->
-    <path class="st" data-m="angry" style="stroke-width:2.6" d="M152 54 l7 7 M159 54 l-7 7 M148 49 q5 5 0 10 M163 49 q-5 5 0 10"/>
-    <path class="ln" data-m="surprised smug" d="M148 96 C152 104 156 108 152 113 C148 117 142 113 144 107 C145 103 147 100 148 96 Z"/>
-    <g data-m="happy pat"><path class="wh twk" d="M34 70 l2.5 6 6 2.5 -6 2.5 -2.5 6 -2.5 -6 -6 -2.5 6 -2.5 Z"/><path class="wh twk" d="M170 60 l2 5 5 2 -5 2 -2 5 -2 -5 -5 -2 5 -2 Z"/><path class="wh twk" d="M160 140 l1.6 4 4 1.6 -4 1.6 -1.6 4 -1.6 -4 -4 -1.6 4 -1.6 Z"/></g>
-    <g class="zzz" data-m="sleep"><text x="146" y="58">z</text><text x="154" y="46">z</text><text x="162" y="34">Z</text></g>
-  </g>
-</svg>
+<div class="sfx" id="sfx" aria-hidden="true"></div>
+<div class="bubble" id="bubble" aria-live="polite">
+  <span class="who"><span class="jp">ツキ</span> · ЦУКИ</span>
+  <button class="aff" id="aff" aria-label="Привязанность и статистика"></button>
+  <div id="say">…</div>
+  <div class="choices" id="choices"></div>
 </div>
+<div class="stage" id="stage">
+  <svg class="girl" id="girl" viewBox="0 0 200 250" role="img" aria-label="Цуки"><g id="tk"></g></svg>
+  <div class="fpill" id="fpill"><i></i><span id="ftime">25:00</span></div>
+</div>
+<div class="sheet" id="sheet" role="dialog"><div class="sh-head"><span id="shTitle"></span><span class="sp"></span><button id="shClose" aria-label="Закрыть">×</button></div><div class="sh-grid" id="shGrid"></div></div>
+<nav class="dock" id="dock">
+  <button data-act="feed" aria-label="Угостить"><span class="ic"><svg viewBox="0 0 24 24"><path d="M12 7c5 0 7 4 4.5 9-1.4 2.8-3 4-4.5 4s-3.1-1.2-4.5-4C5 11 7 7 12 7z"/><path d="M9 6.5l3 1.5 3-1.5M12 8V4"/><path d="M10 12h.01M14 12h.01M12 15h.01"/></svg></span>Еда</button>
+  <button data-act="gift" aria-label="Подарить"><span class="ic"><svg viewBox="0 0 24 24"><rect x="4" y="9" width="16" height="11" rx="1.5"/><path d="M3 9h18M12 9v11M12 9C10 5 6 5 7.5 8M12 9c2-4 6-4 4.5-1"/></svg></span>Подарок</button>
+  <button data-act="play" aria-label="Камень, ножницы, бумага"><span class="ic"><svg viewBox="0 0 24 24"><path d="M8 13V6.5a1.5 1.5 0 0 1 3 0V12M11 11V5a1.5 1.5 0 0 1 3 0v6M14 11.5V7a1.5 1.5 0 0 1 3 0v7c0 4-2.5 6-5.5 6S7 18.5 6 16l-1.5-3a1.5 1.5 0 0 1 2.6-1.4L8 13"/></svg></span>Игра</button>
+  <button data-act="talk" aria-label="Поболтать"><span class="ic"><svg viewBox="0 0 24 24"><path d="M4 6a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H10l-4 4v-4H6a2 2 0 0 1-2-2z"/><path d="M8.5 10h.01M12 10h.01M15.5 10h.01"/></svg></span>Болтать</button>
+  <button data-act="focus" aria-label="Фокус-таймер"><span class="ic"><svg viewBox="0 0 24 24"><circle cx="12" cy="13.5" r="7"/><path d="M12 9.5v4l2.5 2M10 3h4M12 3v3.5"/></svg></span>Фокус</button>
+</nav>
+__INCLUDE_TSUKI__
 <script>
-  // ツキ (Tsuki): an original tsundere mascot. Moods change her face; affection (好感度) grows with head pats
-  // (hold your finger on her) and slowly fades; the higher it is, the more "dere" her lines get.
-  // Only CSS transforms/opacity animate; the logic wakes up every 14 s or on a touch.
-  var girl = document.getElementById('girl'), say = document.getElementById('say'), bubble = document.getElementById('bubble');
-  var sfx = document.getElementById('sfx'), affEl = document.getElementById('aff');
-  var S = null, Q = null, last = '', typing = null, aff = 3, pokes = 0, pokeAt = 0, greeted = false, lastTouch = 0;
+  // ツキ (Tsuki), the tsundere on «Главная». She remembers (affection 0-100, stats, focus timer) through the screen
+  // server's /mem, reacts to where you touch her, follows your finger with her eyes, eats, takes gifts, plays
+  // rock-paper-scissors, asks questions, runs a focus timer, and comments on the laptop, the weather and the time.
+  // Motion budget (Redmi A5): blinks and glances are single attribute swaps on a timer; CSS animations only run for
+  // a moment after a touch; everything stops while the tile is off screen (pbLive from the perf guard).
+  var $ = function (id) { return document.getElementById(id); };
+  var rig = Tsuki.create($('tk'), { pose: 'cross' });
+  var girl = $('girl'), say = $('say'), bubble = $('bubble'), choicesEl = $('choices'), sfxEl = $('sfx'), affEl = $('aff');
+  var stage = $('stage'), sheet = $('sheet'), shGrid = $('shGrid'), dock = $('dock');
+  var S = null, Q = null, W = null, WORK = null;
+  function pbNow() { return new Date(Date.now() + ((window.PB_PREVIEW || {}).offsetMs || 0)); }
+  function live() { return window.pbLive ? pbLive() : !document.hidden; }
   function r(a) { return a[Math.floor(Math.random() * a.length)]; }
-  function txt(x) { return typeof x === 'string' ? x : x[1]; }
-  function pick(a) { var c = a.filter(function (x) { return txt(x) !== last; }); return r(c.length ? c : a); }
-  var TSUN = [
-    'Хмф! Я тут не ради тебя. Просто делать нечего.', 'Н-не смотри на меня так! Лучше работай.',
-    'Б-бака! Я слежу за ноутбуком, а не за тобой!', 'Ладно, так и быть, помогу. Но только сегодня!',
-    'Если что-то сломаешь — я не виновата, понял?', 'Ты опять тут? …Ну и ладно. Не то чтобы я скучала.',
-    'Чего уставился? Пульт слева, бака.', 'Я не жду, пока ты что-то скажешь. Совсем не жду.',
-    'Это не я тебя ждала. Это ты пришёл. Запомни.', 'Хмф. Я самый полезный виджет здесь, если что.'];
-  var MID = [
-    'Ты сегодня неплохо держишься… для тебя.', 'Если устал — сделай перерыв. Это… просто совет!',
-    'Я тут подумала… нет, ничего. Забудь!', 'Не задерживайся допоздна. Мне-то всё равно, но всё же.',
-    'Ноутбук в порядке. Я проверила. Т-тебе не нужно благодарить!', 'Хорошо, что ты зашёл. В смысле — по делу же, да?'];
-  var DERE = [
-    'Т-ты… молодец сегодня. Я сказала это один раз, больше не повторю!', 'Мне… нравится, когда ты рядом. Ч-что?! Забудь!',
-    'Я всегда буду следить за твоим ноутбуком. Всегда. …Не делай такое лицо!', 'Если что — я тут. Не то чтобы ты мне был нужен… просто я тут.',
-    'Эй… не перетруждайся, ладно? Мне не всё равно. Немножко.', 'Ты лучший хозяин ноутбука. …Это я из вежливости!'];
-  var POKE = [['angry', 'Эй! Не тыкай в меня!'], ['surprised', 'Ч-что тебе надо?!'], ['angry', 'Ещё раз — и обижусь!'],
-    ['smug', 'Хмф. Привязался, да?'], ['surprised', 'Кья! Предупреждать надо!']];
-  var POKE_MANY = [['angry', 'ХВАТИТ ТЫКАТЬ! Я тебе не кнопка!'], ['angry', 'Всё. Обиделась. …На пять секунд.']];
-  var PAT = [['pat', 'Н-не гладь меня! …Ну ладно. Ещё чуть-чуть.'], ['pat', 'Я не кошка, бака! …Продолжай.'],
-    ['pat', 'Т-только потому что у тебя тёплые руки!'], ['pat', '…Ладно. Это было приятно. НЕМНОГО.']];
-  var PAT_DERE = [['pat', 'Хи-хи… то есть ХМФ! Не смей рассказывать об этом.'], ['pat', 'Ещё… пожалуйста? …Я этого не говорила!'],
-    ['happy', 'Ты меня балуешь. …Мне нравится.']];
-  function greet(h) {
-    if (h >= 5 && h < 11) return ['shy', pick(['Утро! Н-не то чтобы я ждала, пока ты проснёшься…', 'Доброе утро. Завтракал? …Просто спросила!'])];
-    if (h >= 11 && h < 17) return ['smug', pick(['День в разгаре. Работаем, бака!', 'О, явился. Ну, давай, удиви меня.'])];
-    if (h >= 17 && h < 22) return ['normal', pick(['Добрый вечер. Устал? …Я не беспокоюсь, просто так.', 'Вечер. Можно и музыку включить, кстати.'])];
-    return ['sleep', 'Ночь же… Иди спать, бака. Я тоже… не устала совсем.'];
+  function clamp(v, a, b) { return Math.max(a, Math.min(b, v)); }
+  var lastLine = '';
+  function pick(a) { var c = a.filter(function (x) { return (x[1] || x) !== lastLine; }); return r(c.length ? c : a); }
+  function dayKey(d) { d = d || pbNow(); return d.getFullYear() + '-' + (d.getMonth() + 1) + '-' + d.getDate(); }
+
+  // ---------------------------------------------------------------- memory (screen server /mem, see ScreenServer.cs)
+  var MEM_BASE = '__BASE__', MEM_KEY = '__KEY__', memReady = false, saveT = null, dirty = false;
+  var mem = { v: 1, aff: 30, pats: 0, pokes: 0, fed: 0, gifts: 0, tickles: 0, jk: [0, 0, 0], first: Date.now(), seen: Date.now(),
+              day: '', streak: 0, days: 0, focus: { until: 0, len: 0, rest: 0, done: 0, day: '' }, t: 0 };
+  var online = !!(MEM_BASE && MEM_KEY && MEM_BASE.indexOf('http') === 0);
+  function memUrl(q) { return MEM_BASE + '/mem?k=' + encodeURIComponent(MEM_KEY) + (q || '') + '&_=' + Date.now(); }
+  function memLoad(done) {
+    var fallback = function () { if (window.PB_PREVIEW && PB_PREVIEW.mem) Object.assign(mem, PB_PREVIEW.mem); memReady = true; done(); };
+    if (!online) return fallback();
+    var ctl = window.AbortController ? new AbortController() : null, to = setTimeout(function () { if (ctl) ctl.abort(); }, 6000);
+    fetch(memUrl(), { cache: 'no-store', signal: ctl ? ctl.signal : undefined }).then(function (x) { return x.json(); }).then(function (o) {
+      clearTimeout(to);
+      if (o && o.v === 1) {
+        // anything that happened before the memory arrived is added on top
+        var local = mem; mem = Object.assign({}, mem, o);
+        ['pats', 'pokes', 'fed', 'gifts', 'tickles'].forEach(function (k) { mem[k] = (o[k] || 0) + (local[k] - 0 > 0 && dirty ? local[k] : 0); });
+        mem.focus = Object.assign({ until: 0, len: 0, rest: 0, done: 0, day: '' }, o.focus || {});
+        if (!Array.isArray(mem.jk)) mem.jk = [0, 0, 0];
+      }
+      memReady = true; done();
+    }).catch(function () { clearTimeout(to); memReady = true; done(); });
   }
-  function context() {
-    var out = [], h = new Date().getHours(), day = new Date().getDay();
-    var pc = S && S.pc, cpu = pc && pc.cpu, ram = pc && pc.ramTotalGb ? pc.ramUsedGb / pc.ramTotalGb * 100 : null;
-    var gt = pc && pc.gpu && pc.gpu.temp, ping = S && S.ping && S.ping.ms, media = S && S.media, down = pc && pc.netDownBps;
-    var cl = Q && (Q.providers || []).filter(function (p) { return p.id === 'claude'; })[0], lim = cl && (cl.limits || [])[0];
-    if (cpu > 80) out.push(['angry', 'Процессор на ' + Math.round(cpu) + '%! Ты что, решил его поджарить?!']);
-    if (gt > 80) out.push(['angry', 'Видеокарта ' + Math.round(gt) + '°C! Горячо… как мои щёки. В смысле, НЕТ!']);
-    if (ram > 90) out.push([r(['angry', 'smug']), r(['Память ' + Math.round(ram) + '%! Опять сто вкладок открыл? Закрой лишнее, бака!',
-      'Память ' + Math.round(ram) + '%. Firefox опять всё съел, да? Хмф.', 'Ноутбук задыхается, ' + Math.round(ram) + '% памяти! Пожалей его!'])]);
-    if (lim && lim.percent >= 80) out.push(['angry', 'Лимит Claude уже ' + Math.round(lim.percent) + '%! Береги его, глупый!']);
-    if (ping > 200) out.push(['surprised', 'Интернет тормозит, ' + Math.round(ping) + ' мс. Это не я виновата!']);
-    if (out.length && Math.random() < .75) return out;
-    if (h < 5) return [['sleep', 'Zzz… н-не смотри, как я сплю!'], ['sleep', 'Уже ' + h + ' ночи… Ложись спать. Пожалуйста.']];
-    if (down > 5 * 1048576) out.push(['surprised', 'Что ты там качаешь на ' + (down / 1048576).toFixed(0) + ' МБ/с?! …Мне не интересно. Совсем.']);
-    if (media && media.playing && media.title) out.push([r(['shy', 'happy']), r(['«' + media.title + '»? …Ну, неплохо. Для тебя.', 'Опять «' + media.title + '»… Ладно, мне тоже нравится. ЧУТЬ-ЧУТЬ.'])]);
-    if (lim && lim.percent < 30) out.push(['smug', 'Claude почти полон. Можешь работать… я разрешаю.']);
-    if (pc && pc.uptimeSec > 2 * 86400) out.push(['normal', 'Ноутбук не выключался ' + Math.floor(pc.uptimeSec / 86400) + ' дня. Ему тоже нужен отдых… как и тебе.']);
-    if (day === 0 || day === 6) out.push(['happy', 'Выходной! Может, отдохнёшь? …Я не предлагаю провести его со мной!']);
-    if (h >= 22) out.push(['normal', 'Уже поздно. Не засиживайся… я не беспокоюсь, просто так сказала!']);
-    var pool = aff >= 8 ? DERE : aff >= 4 ? MID.concat(TSUN.slice(0, 4)) : TSUN;
-    pool.forEach(function (t) { out.push([aff >= 8 ? r(['shy', 'happy']) : r(['normal', 'normal', 'smug']), t]); });
-    return out;
+  function memSave(now) {
+    dirty = true; mem.t = Date.now();
+    clearTimeout(saveT);
+    saveT = setTimeout(function () {
+      if (!online) return;
+      fetch(memUrl('&set=' + encodeURIComponent(JSON.stringify(mem))), { cache: 'no-store', mode: 'no-cors' }).catch(function () {});
+    }, now ? 50 : 2500);
   }
-  var SFX = { angry: ['ムッ!', 'もう!', 'バカ!'], shy: ['ドキッ', 'きゅん'], pat: ['なでなで', 'ふにゃ'], happy: ['えへへ', 'キラッ'],
-              sleep: ['すやすや'], smug: ['フン', 'ふふん'], surprised: ['えっ!?', 'ひゃっ'], normal: ['フン', '', ''] };
-  function renderAff() {
+
+  // ---------------------------------------------------------------- affection
+  function tier() { return mem.aff >= 75 ? 'dere' : mem.aff >= 50 ? 'warm' : mem.aff >= 25 ? 'cool' : 'tsun'; }
+  var gains = [];  // recent gains, so ten pats in a row are not worth ten times one
+  function addAff(v, why) {
+    if (v > 0) {
+      var now = Date.now(); gains = gains.filter(function (g) { return now - g < 120000; });
+      var damp = gains.length >= 8 ? 0 : gains.length >= 5 ? .5 : 1; gains.push(now);
+      v = Math.round(v * damp * 10) / 10;
+    }
+    var before = Math.floor(mem.aff / 10);
+    mem.aff = clamp(Math.round((mem.aff + v) * 10) / 10, 0, 100);
+    renderAff(Math.floor(mem.aff / 10) !== before); memSave();
+  }
+  function renderAff(bump) {
     var html = '<span class="jp">好感度</span>';
     for (var i = 0; i < 5; i++) {
-      var v = aff - i * 2, cls = v >= 2 ? 'f' : v === 1 ? 'h' : '';
+      var v = mem.aff - i * 20, cls = v >= 17 ? 'f' : v >= 7 ? 'h' : '';
       html += '<svg viewBox="0 0 24 24" class="' + cls + '"><path d="M12 20s-7-4.4-9.3-8.6C1 8.4 2.6 5 6 5c2 0 3.3 1.1 4 2.3.4.7 1.6.7 2 0C12.7 6.1 14 5 16 5c3.4 0 5 3.4 3.3 6.4C17 15.6 12 20 12 20z"/></svg>';
     }
     affEl.innerHTML = html;
+    if (bump) { affEl.classList.remove('bump'); void affEl.offsetWidth; affEl.classList.add('bump'); }
   }
-  function speak(mood, text) {
-    last = text;
-    document.body.className = 'm-' + mood;
-    girl.setAttribute('class', 'girl m-' + mood + (mood === 'angry' ? ' shake' : ''));
-    var fx = r(SFX[mood] || ['']);
-    sfx.classList.remove('show'); sfx.textContent = fx; sfx.className = 'sfx' + (Math.random() < .5 ? ' left' : '');
-    if (fx) { void sfx.offsetWidth; sfx.classList.add('show'); }
-    bubble.className = 'bubble' + (mood === 'angry' ? ' shout' : mood === 'pat' || mood === 'shy' ? ' soft' : '');
-    void bubble.offsetWidth; bubble.classList.add('pop');
-    clearInterval(typing); var i = 0; say.textContent = '';
-    typing = setInterval(function () { i += 2; say.textContent = text.slice(0, i); if (i >= text.length) clearInterval(typing); }, 34);
+
+  // ---------------------------------------------------------------- speaking
+  var typing = null, restT = null, lastTouch = 0, lastTalk = 0, busyUntil = 0, sulkUntil = 0;
+  var SFX = { angry: ['ムッ!', 'もう!', 'バカ!'], rage: ['ガーン', 'ムカッ!'], shy: ['ドキッ', 'きゅん'], pat: ['なでなで', 'ふにゃ~'],
+              happy: ['えへへ', 'キラッ'], love: ['ドキドキ', 'きゅん♡'], smug: ['フン', 'ふふん'], surprised: ['えっ!?', 'ひゃっ'],
+              flustered: ['あわわ', 'はわわ'], laugh: ['あはは!', 'くすくす'], sad: ['しゅん'], cry: ['うぅ…'], pout: ['ぷくー', 'むぅ'],
+              eat: ['もぐもぐ'], determined: ['よし!', 'ファイト!'], shock: ['ガーン!'], tsun: ['ツーン', 'フンッ'], wink: ['てへ'],
+              think: ['うーん'], sleepy: ['ふぁ~'], yawn: ['ふぁ~'] };
+  function baseMood() { var h = pbNow().getHours(); return h >= 23 || h < 6 ? 'sleepy' : tier() === 'dere' ? 'happy' : 'normal'; }
+  function sfx(text) {
+    if (!text) return;
+    sfxEl.classList.remove('show'); sfxEl.textContent = text; sfxEl.className = 'sfx' + (Math.random() < .5 ? ' left' : '');
+    void sfxEl.offsetWidth; sfxEl.classList.add('show');
   }
-  function tick() {
-    if (Date.now() - lastTouch < 9000) return;  // don't talk over a reaction
-    if (!greeted) { greeted = true; var g = greet(new Date().getHours()); speak(g[0], g[1]); return; }
-    var p = pick(context()); speak(p[0], p[1]);
+  // speak(mood, text, {pose, props, sfx:false|'text', choices:[[label, fn]], hold: ms, html, quiet})
+  // quiet: a line she says on her own (nobody touched her). It changes the picture in one repaint: no typing, no
+  // pop, no shake, no katakana. On the phone the animated version cost ~60 frames per line (measured with gfxinfo).
+  function speak(mood, text, o) {
+    o = o || {}; lastLine = text; lastTalk = Date.now();
+    rig.mood(mood);
+    rig.pose(o.pose || (/^(shy|flustered)$/.test(mood) && Math.random() < .5 ? 'shy' : mood === 'love' && Math.random() < .4 ? 'heart' : 'cross'));
+    rig.props(o.props || []);
+    document.body.className = /^(angry|rage|shock)$/.test(mood) ? 'fx-speed' : /^(shy|happy|pat|love|laugh)$/.test(mood) ? 'fx-glow' : '';
+    girl.classList.remove('shake', 'hop');
+    if (!o.quiet) { void girl.getBoundingClientRect(); if (/^(angry|rage)$/.test(mood)) girl.classList.add('shake'); }
+    if (o.sfx !== false && !o.quiet) sfx(typeof o.sfx === 'string' ? o.sfx : r(SFX[mood] || ['']));
+    bubble.className = 'bubble' + (/^(angry|rage|shock)$/.test(mood) ? ' shout' : /^(pat|shy|love|sleepy|sad)$/.test(mood) ? ' soft' : '');
+    if (!o.quiet) { void bubble.offsetWidth; bubble.classList.add('pop'); }
+    choicesEl.innerHTML = '';
+    clearInterval(typing);
+    if (o.html || o.quiet) { if (o.html) say.innerHTML = o.html; else say.textContent = text; } else {
+      var i = 0; say.textContent = '';
+      typing = setInterval(function () { i += 3; say.textContent = text.slice(0, i); if (i >= text.length) { clearInterval(typing); } }, 45);
+    }
+    (o.choices || []).forEach(function (c) {
+      var b = document.createElement('button'); b.textContent = c[0];
+      b.addEventListener('click', function (e) { e.stopPropagation(); choicesEl.innerHTML = ''; lastTouch = Date.now(); c[1](); });
+      choicesEl.appendChild(b);
+    });
+    clearTimeout(restT);
+    if (!(o.choices && o.choices.length)) restT = setTimeout(rest, o.hold || 7000);
+  }
+  function rest() {  // back to her resting face and crossed arms; the bubble keeps its text
+    rig.mood(baseMood()); rig.pose('cross'); rig.props([]); document.body.className = ''; restLook();
+  }
+  function restLook() { var m = Tsuki.MOODS[rig.moodName] || {}; rig.look(m.look ? m.look[0] : 0, m.look ? m.look[1] : 0); }
+
+  // ---------------------------------------------------------------- lines
+  var TSUN = ['Хмф! Я тут не ради тебя. Просто делать нечего.', 'Н-не смотри на меня так! Лучше работай.', 'Б-бака! Я слежу за ноутбуком, а не за тобой!',
+    'Ладно, так и быть, помогу. Но только сегодня!', 'Если что-то сломаешь — я не виновата, понял?', 'Ты опять тут? …Ну и ладно. Не то чтобы я скучала.',
+    'Чего уставился? Пульт справа, бака.', 'Это не я тебя ждала. Это ты пришёл. Запомни.', 'Хмф. Я самый полезный виджет здесь, если что.'];
+  var MID = ['Ты сегодня неплохо держишься… для тебя.', 'Если устал — сделай перерыв. Это… просто совет!', 'Я тут подумала… нет, ничего. Забудь!',
+    'Не задерживайся допоздна. Мне-то всё равно, но всё же.', 'Ноутбук в порядке. Я проверила. Т-тебе не нужно благодарить!',
+    'Хорошо, что ты зашёл. В смысле — по делу же, да?', 'Можешь погладить… если очень хочется. Я разрешаю. Один раз.'];
+  var DERE = ['Т-ты… молодец сегодня. Я сказала это один раз, больше не повторю!', 'Мне… нравится, когда ты рядом. Ч-что?! Забудь!',
+    'Я всегда буду следить за твоим ноутбуком. Всегда. …Не делай такое лицо!', 'Если что — я тут. Не то чтобы ты мне был нужен… просто я тут.',
+    'Эй… не перетруждайся, ладно? Мне не всё равно. Немножко.', 'Ты лучший хозяин ноутбука. …Это я из вежливости!', 'Я… рада тебя видеть. ТОЛЬКО НИКОМУ НЕ ГОВОРИ.'];
+  function greet() {
+    var h = pbNow().getHours(), away = Date.now() - (mem.seen || Date.now()), t = tier();
+    if (away > 2 * 86400000) return [t === 'dere' ? 'cry' : 'tsun', 'Где ты пропадал ' + Math.floor(away / 86400000) + ' дня?! Я… я не скучала! Совсем! …Бака.'];
+    if (mem.streak >= 3 && Math.random() < .5) return ['shy', 'Ты заходишь уже ' + mem.streak + ' ' + plural(mem.streak, 'день', 'дня', 'дней') + ' подряд. Н-не то чтобы я считала!'];
+    if (h >= 5 && h < 11) return ['shy', pick(['Утро! Н-не то чтобы я ждала, пока ты проснёшься…', 'Доброе утро. Завтракал? …Просто спросила!'])];
+    if (h >= 11 && h < 17) return ['smug', pick(['День в разгаре. Работаем, бака!', 'О, явился. Ну, давай, удиви меня.'])];
+    if (h >= 17 && h < 22) return ['normal', pick(['Добрый вечер. Устал? …Я не беспокоюсь, просто так.', 'Вечер. Можно и музыку включить, кстати.'])];
+    return ['sleepy', 'Ночь же… Иди спать, бака. Я тоже… не устала совсем.'];
+  }
+  function greetBack(away) {  // the panel came back from the idle screen
+    var h = pbNow().getHours(), min = Math.round(away / 60000);
+    if (h >= 20 || h < 7) return pick([['sleepy', 'Ты меня разбудил… Зачем? …Ладно. Что надо?'], ['tsun', 'Я не спала! Я… медитировала. С закрытыми глазами.'],
+      ['yawn', 'Фуа-а… а, это ты. Только недолго, ладно?']]);
+    if (min > 90) return ['pout', 'Тебя не было ' + Math.round(min / 60) + ' ' + plural(Math.round(min / 60), 'час', 'часа', 'часов') + '! …Я не засекала. Само получилось.'];
+    return pick([['surprised', 'О! Вернулся. Я тут… занималась своими делами. Важными!'], ['smug', 'С возвращением. Я ни капельки не ждала.'],
+      ['shy', 'Т-ты вернулся… В смысле, ну и что? Привет.']]);
+  }
+  function plural(n, a, b, c) { n = Math.abs(n) % 100; var n1 = n % 10; return n > 10 && n < 20 ? c : n1 > 1 && n1 < 5 ? b : n1 === 1 ? a : c; }
+  function context() {
+    var out = [], d = pbNow(), h = d.getHours(), day = d.getDay();
+    var pc = S && S.pc, cpu = pc && pc.cpu, ram = pc && pc.ramTotalGb ? pc.ramUsedGb / pc.ramTotalGb * 100 : null;
+    var gt = pc && pc.gpu && pc.gpu.temp, ping = S && S.ping && S.ping.ms, media = S && S.media, down = pc && pc.netDownBps;
+    var cl = Q && (Q.providers || []).filter(function (p) { return p.id === 'claude'; })[0], lim = cl && (cl.limits || [])[0];
+    var waiting = WORK && (WORK.sessions || []).filter(function (s) { return s.status === 'waiting'; }).length;
+    if (waiting) out.push(['surprised', 'Claude ждёт твоего ответа' + (waiting > 1 ? ' в ' + waiting + ' сессиях' : '') + '! Иди ответь, бака!']);
+    if (cpu > 80) out.push(['angry', 'Процессор на ' + Math.round(cpu) + '%! Ты что, решил его поджарить?!']);
+    if (gt > 80) out.push(['flustered', 'Видеокарта ' + Math.round(gt) + '°C! Горячо… как мои щёки. В смысле, НЕТ!']);
+    if (ram > 90) out.push([r(['angry', 'smug']), r(['Память ' + Math.round(ram) + '%! Опять сто вкладок открыл? Закрой лишнее, бака!',
+      'Память ' + Math.round(ram) + '%. Браузер опять всё съел, да? Хмф.', 'Ноутбук задыхается, ' + Math.round(ram) + '% памяти! Пожалей его!'])]);
+    if (lim && lim.percent >= 80) out.push(['angry', 'Лимит Claude уже ' + Math.round(lim.percent) + '%! Береги его, глупый!']);
+    if (ping > 200) out.push(['surprised', 'Интернет тормозит, ' + Math.round(ping) + ' мс. Это не я виновата!']);
+    if (out.length && Math.random() < .75) return out;
+    if (h >= 1 && h < 5) return [['sleepy', 'Уже ' + h + ' ночи… Ложись спать. Пожалуйста. Я серьёзно.'], ['angry', h + ' часов ночи! Завтра будешь как зомби, бака!']];
+    if (down > 5 * 1048576) out.push(['surprised', 'Что ты там качаешь на ' + (down / 1048576).toFixed(0) + ' МБ/с?! …Мне не интересно. Совсем.']);
+    if (media && media.playing && media.title) out.push([r(['shy', 'happy']), r(['«' + media.title + '»? …Ну, неплохо. Для тебя.', 'Опять «' + media.title + '»… Ладно, мне тоже нравится. ЧУТЬ-ЧУТЬ.', 'Я не подпеваю! …♪'])]);
+    if (lim && lim.percent < 30) out.push(['smug', 'Claude почти полон. Можешь работать… я разрешаю.']);
+    if (pc && pc.uptimeSec > 2 * 86400) out.push(['normal', 'Ноутбук не выключался ' + Math.floor(pc.uptimeSec / 86400) + ' ' + plural(Math.floor(pc.uptimeSec / 86400), 'день', 'дня', 'дней') + '. Ему тоже нужен отдых… как и тебе.']);
+    if (day === 0 || day === 6) out.push(['happy', 'Выходной! Может, отдохнёшь? …Я не предлагаю провести его со мной!']);
+    if (h >= 22) out.push(['sleepy', 'Уже поздно. Не засиживайся… я не беспокоюсь, просто так сказала!']);
+    if (h >= 12 && h < 14) out.push(['think', 'Время обеда. Ты поел? …Я спрашиваю для статистики.']);
+    var c = W && W.current;
+    if (c) {
+      var t = Math.round(c.temperature_2m), code = c.weather_code;
+      if (code >= 71 && code <= 86) out.push(['happy', 'На улице снег! …Не то чтобы я хотела слепить снеговика. С тобой.']);
+      else if ((code >= 51 && code <= 67) || (code >= 80 && code <= 82)) out.push(['normal', 'Дождь. Возьми зонт, если пойдёшь. Не хочу, чтобы ты заболел… из-за ноутбука!']);
+      if (t <= -10) out.push(['angry', 'На улице ' + t + '°! Оденься теплее, бака. Шапку тоже!']);
+      if (t >= 32) out.push(['sleepy', t + '° жары… Я таю. Попей воды, ладно?']);
+    }
+    if (Date.now() - (mem.lastWater || 0) > 3600000 && h >= 9 && h < 23) out.push(['think', 'Ты пил воду за последний час? Иди попей. Это приказ, а не забота!']);
+    var pool = tier() === 'dere' ? DERE : tier() === 'warm' ? MID.concat(DERE.slice(0, 2)) : tier() === 'cool' ? MID.concat(TSUN.slice(0, 5)) : TSUN;
+    pool.forEach(function (x) { out.push([tier() === 'dere' ? r(['shy', 'happy', 'love']) : r(['normal', 'normal', 'smug', 'tsun']), x]); });
+    return out;
+  }
+
+  // ---------------------------------------------------------------- touching her
+  var NS_PT = girl.createSVGPoint();
+  function toSvg(e) { NS_PT.x = e.clientX; NS_PT.y = e.clientY; var m = girl.getScreenCTM(); return m ? NS_PT.matrixTransform(m.inverse()) : { x: 100, y: 120 }; }
+  function zone(p) {
+    var x = p.x, y = p.y, fx = (x - 100) / 52, fy = (y - 122) / 47;
+    if (y < 42 && Math.abs(x - 107) < 16) return 'ahoge';
+    if (Math.hypot(x - 48, y - 80) < 15 || Math.hypot(x - 152, y - 80) < 15) return 'ribbon';
+    if (fx * fx + fy * fy < 1) {
+      if (y < 116) return 'head';  // hair, forehead, brows: a fingertip is wide, be generous
+      if (y > 136 && y < 164 && (x < 84 || x > 116)) return 'cheek';
+      return 'face';
+    }
+    if (y < 112 && x > 40 && x < 160) return 'head';
+    if ((x < 46 || x > 154) && y > 84) return 'tail';
+    if (y >= 172 && x > 40 && x < 160) return 'body';
+    return '';
   }
   function hearts(n) {
     for (var i = 0; i < n; i++) (function (k) {
       setTimeout(function () {
         var s = document.createElementNS('http://www.w3.org/2000/svg', 'svg'); s.setAttribute('viewBox', '0 0 24 24'); s.setAttribute('class', 'heart');
         s.innerHTML = '<path d="M12 20s-7-4.4-9.3-8.6C1 8.4 2.6 5 6 5c2 0 3.3 1.1 4 2.3.4.7 1.6.7 2 0C12.7 6.1 14 5 16 5c3.4 0 5 3.4 3.3 6.4C17 15.6 12 20 12 20z"/>';
-        s.style.left = (38 + Math.random() * 24) + '%'; s.style.top = (40 + Math.random() * 10) + 'vh'; s.style.setProperty('--dx', (Math.random() * 10 - 5) + 'vw');
+        s.style.left = (36 + Math.random() * 26) + '%'; s.style.top = (36 + Math.random() * 10) + 'vh'; s.style.setProperty('--dx', (Math.random() * 10 - 5) + 'vw');
         document.body.appendChild(s); setTimeout(function () { s.remove(); }, 1600);
-      }, k * 160);
+      }, k * 150);
     })(i);
   }
-  function setAff(v) { aff = Math.max(0, Math.min(10, v)); renderAff(); affEl.classList.remove('bump'); void affEl.offsetWidth; affEl.classList.add('bump'); }
-  var holdT = null, held = false;
-  document.addEventListener('pointerdown', function () {
-    held = false; lastTouch = Date.now();
-    holdT = setTimeout(function () {  // head pat
-      held = true; lastTouch = Date.now(); setAff(aff + 1); hearts(aff >= 8 ? 6 : 4);
-      var p = pick(aff >= 8 ? PAT_DERE : PAT); speak(p[0], p[1]);
-    }, 520);
-  });
-  document.addEventListener('pointerup', function () {
-    clearTimeout(holdT); if (held) return;
+  function flash(cls, ms) { girl.classList.remove(cls); void girl.getBoundingClientRect(); girl.classList.add(cls); setTimeout(function () { girl.classList.remove(cls); }, ms || 900); }
+  var PAT = { tsun: [['pat', 'Н-не гладь меня! …Ну ладно. Ещё чуть-чуть.'], ['pat', 'Я не кошка, бака! …Продолжай.'], ['shy', 'Т-только потому что у тебя тёплые руки!']],
+              cool: [['pat', '…Ладно. Это было приятно. НЕМНОГО.'], ['pat', 'Хм. Ты гладишь… сносно.'], ['shy', 'Только голову! И не растрепи хвостики!']],
+              warm: [['pat', 'Хи-хи… то есть ХМФ! Не смей рассказывать об этом.'], ['pat', 'Ещё… пожалуйста? …Я этого не говорила!'], ['happy', 'Ты меня балуешь. …Мне нравится.']],
+              dere: [['love', 'Мур… то есть! Я не мурлычу! …Ещё.'], ['pat', 'Твоя рука — моя любимая подушка. ЗАБУДЬ, ЧТО Я СКАЗАЛА.'], ['love', 'Я бы так весь день сидела… шучу! …Нет.']] };
+  var patCount = 0, patAt = 0;
+  function pat() {
+    var now = Date.now(); patCount = now - patAt < 20000 ? patCount + 1 : 1; patAt = now;
+    mem.pats++; addAff(3, 'pat'); hearts(mem.aff >= 75 ? 6 : 4);
+    if (patCount === 7) return speak('flustered', 'Х-хватит… я сейчас растаю… совсем…', { sfx: 'とろ~' });
+    if (patCount > 9) return speak('love', '…zzz… ой! Я не уснула! Ты просто так приятно гладишь…', { sfx: 'ふにゃ' });
+    var p = pick(PAT[tier()]); speak(p[0], p[1]);
+  }
+  var pokes = [], ticklesNow = 0, tickleAt = 0;
+  function tap(z, p) {
+    var now = Date.now(); pokes = pokes.filter(function (t) { return now - t < 6000; }); pokes.push(now); mem.pokes++;
+    if (now < sulkUntil) { rig.look(-5, 1); return speak('tsun', pick(['…', 'Я с тобой не разговариваю.', 'Хмф. Обиделась. Ещё ' + Math.ceil((sulkUntil - now) / 1000) + ' секунд.']), { sfx: 'ツーン' }); }
+    if (pokes.length >= 6) { pokes = []; addAff(-4); sulkUntil = now + 15000; return speak('rage', pick(['ХВАТИТ ТЫКАТЬ! Я тебе не кнопка!', 'Всё. Обиделась. …На пятнадцать секунд.']), { pose: 'hips' }); }
+    if (focusLeft() > 0 && Math.random() < .6) return speak('angry', pick(['Не отвлекайся! Фокус ещё ' + fmt(focusLeft()) + '!', 'Эй! Ты должен работать, а не тыкать меня!']), { pose: 'point' });
+    if (z === 'ahoge') { girl.classList.add('boing'); setTimeout(function () { girl.classList.remove('boing'); }, 850);
+      return speak(r(['surprised', 'angry']), pick(['Не трогай хохолок! Он чувствительный!', 'Это не антенна! …Ладно, антенна. Ловит твои глупости.', 'Бо-о-инг… Доволен?!']), { sfx: 'ピョン' }); }
+    if (z === 'ribbon') return speak('angry', pick(['Бантик не трогать! Я его час завязывала!', 'Если развяжешь — будешь завязывать сам. Красиво!']), { pose: 'hips' });
+    if (z === 'cheek') { flash('squish', 400); addAff(.5);
+      return speak('pout', pick(['Ммф! Не тыкай в щёки!', 'Я не моти! …Ну, может, чуть-чуть мягкая.', 'Ещё раз — и я тебя укушу. Серьёзно.']), { sfx: 'ぷに' }); }
+    if (z === 'face') { rig.blink(); return speak('surprised', pick(['Эй! Глаза!', 'Ч-что ты делаешь с моим лицом?!', 'Ты мне в нос попал, бака!'])); }
+    if (z === 'tail') { girl.classList.add('tug'); setTimeout(function () { girl.classList.remove('tug'); }, 550);
+      return speak(r(['angry', 'rage']), pick(['Не дёргай за хвостики!!', 'Ай! Это не верёвки для звонка!', 'Хвостики — святое. Руки прочь!']), { pose: 'hips' }); }
+    if (z === 'body') { ticklesNow = now - tickleAt < 8000 ? ticklesNow + 1 : 1; tickleAt = now; mem.tickles++;
+      if (ticklesNow >= 4) { ticklesNow = 0; return speak('rage', 'ХВАТИТ! Ха-ха… я сейчас умру! Всё, я злюсь!', { sfx: 'もう!' }); }
+      flash('hop', 460); addAff(1);
+      return speak('laugh', pick(['Хи-хи-хи! П-прекрати! Щекотно!', 'Ха-ха… я не боюсь щекотки! Совсем! Хи-хи!', 'Эй! Ха-ха-ха! Нечестно!']), { sfx: 'くすぐったい!' }); }
+    if (z === 'head') { addAff(1); mem.pats++; hearts(2); return speak(tier() === 'tsun' ? 'tsun' : 'shy', pick(['Эй! …Ну ладно.', 'Это что, было поглаживание? Слабенько.', 'Хмф. Можно и подольше…'])); }
+    // empty space: she looks where you tapped
+    rig.look((p.x - 100) / 10, (p.y - 128) / 14); setTimeout(restLook, 1400);
+    if (Math.random() < .35) speak('think', pick(['Что там? …Ничего же нет.', 'Ты промахнулся. Я тут.']));
+  }
+  // one gesture: down -> (hold 0.45 s | rub on the head) = pat, otherwise a tap on that zone on release
+  var down = null, holdT = null, repeatT = null;
+  stage.addEventListener('pointerdown', function (e) {
+    if (sheet.classList.contains('on')) { closeSheet(); return; }
     lastTouch = Date.now();
-    var now = Date.now(); pokes = now - pokeAt < 6000 ? pokes + 1 : 1; pokeAt = now;
-    girl.classList.remove('hop'); void girl.getBoundingClientRect(); girl.classList.add('hop');
-    if (pokes >= 5) { setAff(aff - 1); var m = pick(POKE_MANY); speak(m[0], m[1]); pokes = 0; }
-    else { var p = pick(POKE); speak(p[0], p[1]); }
+    var p = toSvg(e), z = zone(p);
+    down = { x: e.clientX, y: e.clientY, z: z, rub: 0, patted: false, last: e.clientX };
+    try { stage.setPointerCapture(e.pointerId); } catch (_) {}
+    rig.look((p.x - 100) / 12, (p.y - 128) / 14);
+    if (z === 'head' || z === 'ahoge') holdT = setTimeout(function () {
+      if (!down) return; down.patted = true; pat();
+      repeatT = setInterval(function () { if (down) { mem.pats++; addAff(1); hearts(2); } }, 1100);
+    }, 450);
   });
-  document.addEventListener('pointercancel', function () { clearTimeout(holdT); });
-  phonebox.on('state', function (s) { var first = !S; S = s; if (first) tick(); });
+  stage.addEventListener('pointermove', function (e) {
+    if (!down) return;
+    var p = toSvg(e); rig.look((p.x - 100) / 12, (p.y - 128) / 14);
+    var dx = e.clientX - down.last; down.last = e.clientX;
+    if (down.z === 'head' || down.z === 'ahoge' || (p.y < 124 && Math.abs(p.x - 100) < 60)) {  // rubbing the top of her head
+      down.rub += Math.abs(dx);
+      if (down.rub > 70) { down.rub = 0; clearTimeout(holdT); if (!down.patted) { down.patted = true; pat(); } else { mem.pats++; addAff(1); hearts(1); } }
+    }
+  });
+  function up(e, cancel) {
+    clearTimeout(holdT); clearInterval(repeatT);
+    if (!down) return;
+    var d = down; down = null; lastTouch = Date.now();
+    setTimeout(restLook, 1200);
+    if (cancel || d.patted) return;
+    if (Math.hypot(e.clientX - d.x, e.clientY - d.y) > 24) return;  // a swipe that wasn't on her head
+    tap(d.z, toSvg(e));
+  }
+  stage.addEventListener('pointerup', function (e) { up(e, false); });
+  stage.addEventListener('pointercancel', function (e) { up(e, true); });
+
+  // ---------------------------------------------------------------- sheets
+  var shOpen = '';
+  function openSheet(kind, title, items, two) {
+    shOpen = kind; $('shTitle').textContent = title; shGrid.className = 'sh-grid' + (two ? ' two' : ''); shGrid.innerHTML = '';
+    items.forEach(function (it) {
+      var b = document.createElement('button'); b.className = 'item' + (it.big ? ' big' : '');
+      b.innerHTML = (it.icon || '') + '<span>' + it.label + (it.sub ? ' <small>' + it.sub + '</small>' : '') + '</span>';
+      b.addEventListener('click', function (e) { e.stopPropagation(); lastTouch = Date.now(); closeSheet(); it.fn(); });
+      shGrid.appendChild(b);
+    });
+    sheet.classList.add('on');
+    Array.prototype.forEach.call(dock.children, function (b) { b.classList.toggle('on', b.dataset.act === kind); });
+  }
+  function closeSheet() { sheet.classList.remove('on'); shOpen = ''; Array.prototype.forEach.call(dock.children, function (b) { b.classList.remove('on'); }); }
+  $('shClose').addEventListener('click', function (e) { e.stopPropagation(); closeSheet(); });
+
+  // food: favourites raise affection more; green pepper is a crime
+  var FOOD = [
+    { k: 'strawberry', label: 'Клубника', gain: 5, lines: { tsun: ['happy', '…Клубника? Ладно, возьму. Это ничего не значит!'], cool: ['happy', 'Клубника! Т-ты знал, что я её люблю?'], dere: ['love', 'Моя любимая! …Ты лучший. Только никому не говори.'] } },
+    { k: 'pudding', label: 'Пудинг', gain: 4, lines: { tsun: ['smug', 'Пудинг принимается. Ты прощён… частично.'], dere: ['happy', 'Пудинг! Я тебя… ценю. Как поставщика пудинга!'] } },
+    { k: 'onigiri', label: 'Онигири', gain: 3, lines: { tsun: ['normal', 'Онигири? Сойдёт. Сам лепил? …Кривенько. Но вкусно.'], dere: ['happy', 'Ты сам сделал? …Самый вкусный онигири в мире.'] } },
+    { k: 'tea', label: 'Чай', gain: 3, drink: true, lines: { tsun: ['smug', 'Чай. Наконец-то хоть что-то правильное.'], dere: ['happy', 'Ты помнишь, какой я люблю? …Спасибо.'] } },
+    { k: 'chocolate', label: 'Шоколад', gain: 4, lines: { tsun: ['flustered', 'Ш-шоколад?! Это что, признание?! …Возьму. ДЛЯ ИЗУЧЕНИЯ.'], dere: ['love', 'Шоколад… от тебя… Я его год есть буду. По кусочку.'] } },
+    { k: 'pepper', label: 'Перец', gain: -4, bad: true, lines: { tsun: ['shock', 'ПЕРЕЦ?! Ты враг народа! Убери это немедленно!'], dere: ['cry', 'Перец… я думала, ты меня любишь… Бака!'] } }
+  ];
+  var fedAt = [];
+  function feed(f) {
+    var now = Date.now(); fedAt = fedAt.filter(function (t) { return now - t < 600000; });
+    if (!f.bad && fedAt.length >= 4) return speak('angry', 'Я лопну! Ты меня откармливаешь?! Хватит еды на ближайшие десять минут!', { pose: 'hips' });
+    var L = f.lines[tier()] || f.lines[tier() === 'dere' || tier() === 'warm' ? 'dere' : 'tsun'] || f.lines.tsun;
+    if (f.bad) { addAff(f.gain); return speak(L[0], L[1], { pose: 'cover', props: [] }); }
+    fedAt.push(now); mem.fed++; if (f.k === 'tea') mem.lastWater = now;
+    busyUntil = now + 2600;
+    rig.mood('surprised'); rig.pose('offer'); rig.props([{ k: f.k, at: 'R', dx: -10, dy: -4 }]); sfx('わぁ');
+    say.textContent = r(['О!', 'Это мне?', 'Хм?']);
+    var mouth = { L: [52, 230, 90, 214, 'fist'], R: [156, 214, 112, 168, 'fist'] }, k = 0;
+    setTimeout(function () {
+      rig.pose(mouth); rig.props([{ k: f.k, at: 'R', dx: -6, dy: 4, s: .9 }], mouth); rig.mood('eat'); sfx(f.drink ? 'ズズ…' : 'もぐもぐ');
+      var chew = setInterval(function () { k++; rig.face({ m: k % 2 ? 'chew2' : 'chew' }); if (k >= 4) { clearInterval(chew); addAff(f.gain); speak(L[0], L[1], { pose: 'cross' }); } }, 330);
+    }, 650);
+  }
+  var GIFTS = [
+    { k: 'flower', label: 'Цветок', gain: 4, lines: [['shy', 'Ц-цветы?.. Я поставлю их в воду. Просто чтобы не завяли!'], ['love', 'Цветок… для меня? …Он красивый. Как… НЕВАЖНО.']] },
+    { k: 'gift', label: 'Коробка', gain: 4, lines: [['surprised', 'Подарок? Мне? …Спасибо. ТИХО спасибо.'], ['happy', 'Что там? Что там?! …Я не взволнована!']] },
+    { k: 'bunny', label: 'Зайка', gain: 5, lines: [['love', 'Кролик!.. Я назову его… Бака-кун. В твою честь.'], ['shy', 'Плюшевый… Я буду с ним спать. НЕ ПРЕДСТАВЛЯЙ ЭТО.']] },
+    { k: 'manga', label: 'Манга', gain: 3, lines: [['determined', 'Новый том! Только не спойлери! Я тебя знаю!'], ['happy', 'Манга! Ты понимаешь толк в подарках… иногда.']] },
+    { k: 'letter', label: 'Письмо', gain: 6, lines: [['flustered', 'П-п-письмо?! Это… это любовное?! Я… я прочитаю потом!!'], ['flustered', 'С сердечком?! Т-ты… бака… бака бака бака!']] },
+    { k: 'rock', label: 'Камень', gain: 1, lines: [['think', '…Камень. Ты подарил мне камень.'], ['bored', 'Камень. Обычный камень. …Он красивый. Оставлю. НЕ СМЕЙСЯ.']] }
+  ];
+  var giftAt = [];
+  function gift(g) {
+    var now = Date.now(); giftAt = giftAt.filter(function (t) { return now - t < 1800000; });
+    if (giftAt.length >= 3) return speak('smug', 'Ты меня задариваешь… Подозрительно. Что ты натворил?', { pose: 'hips' });
+    giftAt.push(now); mem.gifts++;
+    rig.mood('surprised'); rig.pose('offer'); rig.props([{ k: g.k, x: 100, y: 212 }]); sfx('えっ!?');
+    busyUntil = now + 1400;
+    setTimeout(function () {
+      var L = r(g.lines); addAff(g.gain);
+      speak(L[0], L[1], { pose: 'offer', props: [{ k: g.k, x: 100, y: 212 }], hold: 6000 });
+      if (g.k === 'rock') setTimeout(function () { speak('shy', '…Он правда красивый. Положу на полку.', { pose: 'offer', props: [{ k: 'rock', x: 100, y: 212 }] }); }, 3600);
+    }, 900);
+  }
+  // rock-paper-scissors
+  var HANDS = {
+    rock: '<path d="M7 11V8.5a1.5 1.5 0 0 1 3 0v2M10 10.5V7.5a1.5 1.5 0 0 1 3 0v3M13 10.5V8a1.5 1.5 0 0 1 3 0v4c0 4.5-2.5 7-6 7S5 17 5 14v-2a1.5 1.5 0 0 1 3 0"/>',
+    scissors: '<path d="M8 12L5.5 4.5a1.5 1.5 0 0 1 2.8-1L11 10M11 10l1.2-6.8a1.5 1.5 0 0 1 3 .4L14 11M14 11.5a1.5 1.5 0 0 1 3 0V13c0 4-2.5 6-6 6s-5-2.2-5-5.5V12a1.5 1.5 0 0 1 3 0"/>',
+    paper: '<path d="M7 12V6a1.5 1.5 0 0 1 3 0v5M10 11V4.5a1.5 1.5 0 0 1 3 0V11M13 11V5.5a1.5 1.5 0 0 1 3 0V12M16 12V9a1.5 1.5 0 0 1 3 0v4c0 4-3 7-7 7-3 0-5-1.5-6.5-4L3 13.5a1.5 1.5 0 0 1 2.6-1.5L7 14"/>'
+  };
+  var JK_NAME = { rock: 'Камень', scissors: 'Ножницы', paper: 'Бумага' }, BEATS = { rock: 'scissors', scissors: 'paper', paper: 'rock' };
+  function handSvg(k) { return '<svg class="hand" viewBox="0 0 24 24">' + HANDS[k] + '</svg>'; }
+  var jkLoss = 0;
+  function janken(you) {
+    busyUntil = Date.now() + 1500;
+    rig.mood('determined'); rig.pose('fists'); say.textContent = 'Камень…'; choicesEl.innerHTML = ''; sfx('じゃん');
+    setTimeout(function () { rig.pose('fists2'); say.textContent = 'Камень… ножницы…'; sfx('けん'); }, 420);
+    setTimeout(function () {
+      var her = r(['rock', 'scissors', 'paper']), res = her === you ? 1 : BEATS[you] === her ? 0 : 2;  // 0 you win, 1 draw, 2 she wins
+      mem.jk[res === 0 ? 0 : res === 2 ? 1 : 2]++; memSave();
+      var card = '<div class="jk"><span>ТЫ</span>' + handSvg(you) + '<span class="vs">VS</span>' + handSvg(her) + '<span class="jp">ツキ</span></div>';
+      var again = [['Ещё раз', function () { openJanken(); }], ['Хватит', function () { speak('smug', 'Счёт ' + mem.jk[0] + ':' + mem.jk[1] + '. Я запомню.'); }]];
+      if (res === 2) { jkLoss = 0; addAff(1); speak('smug', '', { html: card + pick(['Хе-хе. Я непобедима! Склонись!', 'Изи. Тренируйся, бака.', JK_NAME[her] + ' бьёт. Это наука.']), sfx: 'ポン!', choices: again }); }
+      else if (res === 0) { jkLoss++; speak(jkLoss >= 2 ? 'cry' : 'pout', '', { html: card + (jkLoss >= 2 ? 'Опять?! Ты подглядываешь! Нечестно!!' : pick(['Нечестно! Ещё раз!', 'Я… поддалась. Специально!', 'Хмф! Это была разминка.'])), sfx: 'ポン!', choices: again }); }
+      else speak('surprised', '', { html: card + pick(['Ничья?! Ты читаешь мои мысли?!', 'Одинаково… Мы думаем одинаково?! К-кошмар!']), sfx: 'ポン!', choices: again });
+    }, 900);
+  }
+  function openJanken() {
+    openSheet('play', 'じゃんけん · ИГРА' + (mem.jk[0] + mem.jk[1] ? ' · ' + mem.jk[0] + ':' + mem.jk[1] : ''), ['rock', 'scissors', 'paper'].map(function (k) {
+      return { icon: handSvg(k), label: JK_NAME[k], fn: function () { janken(k); } };
+    }));
+    if (Date.now() - lastTalk > 3000) speak('determined', 'Сыграем? Проигравший… просто проигравший. Выбирай!', { sfx: 'よし!' });
+  }
+  // talking: questions with answers, or a fact
+  var ASK = [
+    ['think', 'Ты сегодня поел нормально?', [['Да', 'smug', 'Хорошо. …Я не волновалась!', 1], ['Нет', 'angry', 'Бака! Иди поешь. Немедленно! Я подожду.', 0]]],
+    ['shy', 'Я… тебе нравлюсь?', [['Да ♡', 'flustered', 'Ч-ЧТО?! Не говори такое так просто!! …Бака.', 3], ['Нет', 'sad', 'Х-хмф! Мне всё равно! …Совсем всё равно.', -2]]],
+    ['think', 'Чай или кофе?', [['Чай', 'happy', 'Правильный ответ. Ты не безнадёжен.', 1], ['Кофе', 'smug', 'Кофе после шести — и не уснёшь, бака.', 0]]],
+    ['think', 'Сколько ты спал сегодня?', [['Меньше 6 ч', 'angry', 'Меньше шести?! Сегодня ложишься раньше. Это приказ!', 0], ['7+ часов', 'happy', 'Молодец. …Я не хвалю, просто констатирую.', 1]]],
+    ['sad', 'Ты меня не забудешь, если купишь новый телефон?', [['Никогда', 'love', '…Обещаешь? Ладно. Верю. Немного.', 3], ['Посмотрим', 'cry', 'Ч-что?! Бака бака бака!', -2]]],
+    ['think', 'Кошки или собаки?', [['Кошки', 'happy', 'Как Моти! Хороший выбор.', 1], ['Собаки', 'think', 'Хм… собаки тоже милые. Но кошки лучше.', 0]]],
+    ['normal', 'Что делаешь вечером?', [['Работаю', 'tsun', 'Опять? Не перетруждайся… это просто совет.', 0], ['Отдыхаю', 'happy', 'Отдыхай. Ты заслужил. Чуть-чуть.', 1]]],
+    ['shy', 'Тебе нравится мой бантик?', [['Очень', 'shy', 'П-правда?.. Я его… для тебя… НЕТ, ДЛЯ СЕБЯ!', 2], ['Какой бантик?', 'rage', 'Я ЕГО ЧАС ЗАВЯЗЫВАЛА!!', -1]]],
+    ['smug', 'Ты сейчас программируешь?', [['Да', 'determined', 'Пиши аккуратно. Я потом проверю! …Шучу. Наверное.', 1], ['Нет', 'smug', 'Тогда почему ноутбук греется? Подозрительно.', 0]]],
+    ['shy', 'Погладишь меня?.. В смысле, не надо! Просто спросила!', [['Погладить', 'pat', '', 0], ['Не буду', 'pout', 'Н-ну и не надо!! Не очень-то и хотелось!', -1]]],
+    ['think', 'Ты пил воду сегодня?', [['Пил', 'smug', 'Хорошо. Продолжай в том же духе.', 1], ['Забыл', 'angry', 'Забыл?! Иди налей стакан. Сейчас же!', 0]]],
+    ['normal', 'Как прошёл день?', [['Отлично', 'happy', 'Правда? …Я рада. За ноутбук. Он тоже рад.', 1], ['Так себе', 'sad', 'Эй… завтра будет лучше. Я прослежу. Лично.', 2]]]
+  ];
+  var FACTS = [
+    ['smug', 'Знаешь, что у осьминога три сердца? …И всё равно меньше, чем у меня терпения к тебе.'],
+    ['think', 'Факт: каждые 20 минут посмотри вдаль 20 секунд. Глаза скажут спасибо. Я — нет.'],
+    ['normal', 'Сядь ровно. Спина тебе спасибо скажет. А я просто заметила, что ты горбишься.'],
+    ['smug', 'Луна по-японски — 月, «цуки». Да, меня назвали в честь Луны. Красиво, правда? Можешь не отвечать.'],
+    ['think', 'Если код не работает — попробуй объяснить его резиновой уточке. Или мне. Я лучше уточки.'],
+    ['happy', 'Мёд не портится тысячи лет. Как моя… к тебе… ЗАБУДЬ.'],
+    ['normal', 'Котики спят по 16 часов в день. Это не лень. Это мудрость.']
+  ];
+  var lastAsk = -1;
+  function talk() {
+    if (Math.random() < .3) { var f = pick(FACTS); return speak(f[0], f[1], { hold: 9000 }); }
+    var i; do { i = Math.floor(Math.random() * ASK.length); } while (i === lastAsk && ASK.length > 1); lastAsk = i;
+    var q = ASK[i];
+    speak(q[0], q[1], { choices: q[2].map(function (a) {
+      return [a[0], function () { if (a[1] === 'pat') return pat(); addAff(a[3]); speak(a[1], a[2]); }];
+    }) });
+  }
+  // focus timer (pomodoro). The state lives in memory, so the idle screen shows the countdown too.
+  function focusLeft() { return Math.max(0, (mem.focus.until || 0) - Date.now()); }
+  function fmt(ms) { var s = Math.ceil(ms / 1000), m = Math.floor(s / 60); return (m < 10 ? '0' : '') + m + ':' + (s % 60 < 10 ? '0' : '') + s % 60; }
+  function startFocus(min, rest) {
+    mem.focus.until = Date.now() + min * 60000; mem.focus.len = min; mem.focus.rest = rest ? 1 : 0;
+    if (mem.focus.day !== dayKey()) { mem.focus.day = dayKey(); mem.focus.done = 0; }
+    memSave(true); renderFocus();
+    if (rest) speak('happy', 'Перерыв ' + min + ' минут. Встань, потянись, попей воды. Я засекла!', { pose: 'up', sfx: 'のび~' });
+    else speak('determined', 'Фокус! ' + min + ' минут. Я слежу. Не отвлекайся, бака!', { pose: 'fists', sfx: 'ファイト!' });
+  }
+  function stopFocus() { var was = mem.focus.rest; mem.focus.until = 0; memSave(true); renderFocus(); speak(was ? 'normal' : 'sad', was ? 'Перерыв окончен? Ну… за работу.' : 'Сдался?.. Ладно. В следующий раз — до конца.'); }
+  var focusWas = 0;
+  function renderFocus() {
+    var left = focusLeft(), pill = $('fpill');
+    pill.classList.toggle('on', left > 0); pill.classList.toggle('rest', !!mem.focus.rest);
+    if (left > 0) $('ftime').textContent = (mem.focus.rest ? 'отдых ' : '集中 ') + fmt(left);
+    if (focusWas > 0 && left === 0) {  // it just ended
+      if (!mem.focus.rest) { mem.focus.done++; addAff(3); memSave(true);
+        speak('happy', 'Время! ' + mem.focus.done + '-й помидор за сегодня. Ты… молодец. Немного. Перерыв?', { pose: 'peace', sfx: 'やった!', choices: [['5 мин отдыха', function () { startFocus(5, true); }], ['Потом', function () { speak('smug', 'Как хочешь. Но глаза надо беречь!'); }]] });
+      } else speak('determined', 'Перерыв всё! Снова за работу?', { pose: 'fists', choices: [['25 мин', function () { startFocus(25); }], ['Позже', function () { speak('normal', 'Ладно. Я тут, если что.'); }]] });
+    }
+    focusWas = left;
+  }
+  function openFocus() {
+    var left = focusLeft();
+    if (left > 0) return openSheet('focus', (mem.focus.rest ? 'ОТДЫХ' : 'ФОКУС · 集中') + ' — осталось ' + fmt(left), [
+      { label: 'Стоп', big: true, fn: stopFocus }, { label: '+5 минут', big: true, fn: function () { mem.focus.until += 300000; memSave(true); renderFocus(); speak('smug', 'Ещё пять минут. Я добрая сегодня.'); } }], true);
+    openSheet('focus', 'ФОКУС · 集中' + (mem.focus.day === dayKey() && mem.focus.done ? ' — сегодня ' + mem.focus.done : ''), [
+      { label: '25', sub: 'мин', big: true, fn: function () { startFocus(25); } }, { label: '50', sub: 'мин', big: true, fn: function () { startFocus(50); } },
+      { label: '5', sub: 'отдых', big: true, fn: function () { startFocus(5, true); } }]);
+  }
+  dock.addEventListener('click', function (e) {
+    var b = e.target.closest('button'); if (!b) return;
+    lastTouch = Date.now();
+    var act = b.dataset.act;
+    if (shOpen === act) return closeSheet();
+    if (act === 'feed') { openSheet('feed', 'УГОСТИТЬ · おやつ', FOOD.map(function (f) { return { icon: Tsuki.icon(f.k), label: f.label, fn: function () { feed(f); } }; }));
+      if (Date.now() - lastTalk > 3000) speak('think', pick(['Еда? …Ну, покажи, что у тебя.', 'Я не голодная! …Что там есть?'])); }
+    if (act === 'gift') openSheet('gift', 'ПОДАРИТЬ · プレゼント', GIFTS.map(function (g) { return { icon: Tsuki.icon(g.k), label: g.label, fn: function () { gift(g); } }; }));
+    if (act === 'play') openJanken();
+    if (act === 'talk') { closeSheet(); talk(); }
+    if (act === 'focus') openFocus();
+  });
+  // stats: tap the hearts
+  affEl.addEventListener('click', function (e) {
+    e.stopPropagation(); lastTouch = Date.now();
+    var days = Math.max(1, Math.round((Date.now() - (mem.first || Date.now())) / 86400000));
+    var html = '<div class="stats"><span>Вместе <b>' + days + ' ' + plural(days, 'день', 'дня', 'дней') + '</b></span><span>Привязанность <b>' + Math.round(mem.aff) + '%</b></span>' +
+      '<span>Погладил <b>' + mem.pats + '</b></span><span>Угостил <b>' + mem.fed + '</b></span><span>Подарков <b>' + mem.gifts + '</b></span>' +
+      '<span>じゃんけん <b>' + mem.jk[0] + ':' + mem.jk[1] + '</b></span><span>Подряд <b>' + (mem.streak || 1) + ' дн.</b></span>' +
+      '<span>Фокус сегодня <b>' + (mem.focus.day === dayKey() ? mem.focus.done : 0) + '</b></span></div>';
+    speak('shy', '', { html: html, sfx: 'ドキッ', hold: 9000 });
+    if (!online) setTimeout(function () { if (say.querySelector('.stats')) say.insertAdjacentHTML('beforeend', '<div style="margin-top:.6vh;font-size:2.4vh;color:#8c8c8c">нет связи с сервером: помню до перезапуска</div>'); }, 50);
+  });
+
+  // ---------------------------------------------------------------- living: blinks, glances, small habits
+  function sched(fn, a, b) { setTimeout(function loop() { fn(); setTimeout(loop, a + Math.random() * (b - a)); }, a + Math.random() * (b - a)); }
+  sched(function () { if (live() && !down) rig.blink(); }, 2600, 6200);
+  var MICRO = [
+    function () { rig.look(r([-4, 4]), r([-1, 1])); setTimeout(restLook, 1500); },                 // glance aside
+    function () { rig.tilt(r([-5, 5])); setTimeout(function () { var m = Tsuki.MOODS[rig.moodName] || {}; rig.tilt(m.tilt || 0); }, 2200); },
+    function () { girl.classList.add('boing'); setTimeout(function () { girl.classList.remove('boing'); }, 850); },
+    function () { rig.look(0, 4); setTimeout(restLook, 1800); }                                     // looks down at "the laptop"
+  ];
+  sched(function () {
+    if (!live() || down || shOpen || Date.now() < busyUntil || choicesEl.children.length) return;
+    var idle = Date.now() - lastTouch;
+    if (idle > 180000 && Math.random() < .6) return;  // nobody here: fidget less
+    var media = S && S.media;
+    if (media && media.playing && Math.random() < .4) {  // humming along, two stepped frames
+      var fx = rig.faceNow.fx; rig.face({ fx: 'notes' }); setTimeout(function () { rig.face({ fx: 'notes2' }); }, 700);
+      setTimeout(function () { rig.face({ fx: (Tsuki.MOODS[rig.moodName] || {}).fx || '' }); }, 1500); return;
+    }
+    var h = pbNow().getHours();
+    if ((h >= 23 || h < 6) && Math.random() < .35) { rig.mood('yawn'); if (idle < 60000) sfx('ふぁ~'); setTimeout(function () { rig.mood(baseMood()); }, 1600); return; }
+    // the ahoge boing is a real CSS animation (~40 frames): only while someone is around; the rest are single steps
+    (idle < 60000 ? r(MICRO) : r([MICRO[0], MICRO[1], MICRO[3]]))();
+  }, 7000, 14000);
+  function tick() {
+    if (!memReady || !live()) return;
+    if (Date.now() - lastTouch < 9000 || Date.now() < busyUntil || shOpen || choicesEl.children.length) return;
+    if (focusLeft() > 0 && !mem.focus.rest && Math.random() < .7) return speak(r(['focus', 'determined', 'smug']), pick(['Работай. Я тоже… работаю.', 'Не смотри на меня, смотри в код!',
+      'Ещё ' + fmt(focusLeft()) + '. Ты справишься. Не то чтобы я верила в тебя… ладно, верю.', 'Тс-с. Фокус. Даже я молчу.']), { quiet: true });
+    var p = pick(context());
+    // right after a touch she is "performing" for you; when nobody touched her for a while she just talks
+    speak(p[0], p[1], { quiet: Date.now() - lastTouch > 60000 });
+  }
+
+  // ---------------------------------------------------------------- start, visibility, data
+  var hiddenAt = 0, wasVisible = true;
+  try {
+    new IntersectionObserver(function (e) {
+      var v = e[e.length - 1].isIntersecting;
+      if (!v && wasVisible) hiddenAt = Date.now();
+      if (v && !wasVisible && hiddenAt && Date.now() - hiddenAt > 4 * 60000 && memReady) { var g = greetBack(Date.now() - hiddenAt); speak(g[0], g[1]); }
+      wasVisible = v;
+    }).observe(document.documentElement);
+  } catch (e) {}
+  function daily() {
+    var today = dayKey(), y = new Date(pbNow() - 86400000);
+    if (mem.day === today) return;
+    mem.streak = mem.day === dayKey(y) ? (mem.streak || 0) + 1 : 1; mem.days = (mem.days || 0) + 1; mem.day = today;
+    var away = Date.now() - (mem.seen || Date.now());
+    if (away > 3600000) mem.aff = clamp(mem.aff - Math.min(15, Math.floor(away / 3600000) * .5), 10, 100);  // slow fade while away
+    addAff(2);
+  }
+  memLoad(function () {
+    daily(); renderAff(); renderFocus();
+    var g = greet(); speak(g[0], g[1]);
+    mem.seen = Date.now(); memSave();
+  });
+  setInterval(function () { if (memReady && Date.now() - lastTouch < 600000) { mem.seen = Date.now(); memSave(); } }, 120000);
+  setInterval(function () { if (live() && (focusLeft() > 0 || focusWas > 0)) renderFocus(); }, 1000);
+  setInterval(function () { if (memReady) daily(); }, 600000);
+  sched(tick, 16000, 24000);
+  phonebox.on('state', function (s) { S = s; });
   phonebox.on('quotas', function (q) { Q = q; });
+  phonebox.on('weather', function (w) { W = w; });
+  phonebox.on('work', function (w) { var was = WORK && (WORK.sessions || []).some(function (x) { return x.status === 'waiting'; }); WORK = w;
+    if (!was && memReady && (w.sessions || []).some(function (x) { return x.status === 'waiting'; }) && live()) speak('surprised', 'Claude закончил и ждёт тебя! Иди посмотри, бака!', { pose: 'point' }); });
   renderAff();
-  setInterval(function () { if (!document.hidden) tick(); }, 14000);
-  setInterval(function () { if (aff > 2) { aff--; renderAff(); } }, 10 * 60000);  // affection slowly fades back to tsun
-  setTimeout(function () { if (!S) tick(); }, 1500);
 </script>

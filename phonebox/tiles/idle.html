@@ -1,0 +1,566 @@
+<style>
+  :root { --fg: #f2f2f2; --mut: #8a8a8a; --dim: #5c5c5c; --line: #e9e9e9; }
+  * { box-sizing: border-box; }
+  html, body { background: #000; margin: 0; }
+  body { position: relative; height: 100vh; overflow: hidden; cursor: pointer; color: var(--fg); -webkit-tap-highlight-color: transparent;
+         user-select: none; -webkit-user-select: none; font-family: Roboto, system-ui, sans-serif; -webkit-font-smoothing: antialiased; }
+  .jp { font-family: "Noto Sans CJK JP", "Noto Sans JP", "Yu Gothic", sans-serif; }
+  .mode { position: absolute; inset: 0; display: none; }
+  .mode.on { display: block; }
+  .mode.fade { opacity: 0; transition: opacity .9s ease; }
+  /* ---------- day: a manga page of three panels; the scene panel has a slanted edge ---------- */
+  .frames { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
+  .frames polygon { fill: none; stroke: var(--line); stroke-width: 1.6; vector-effect: non-scaling-stroke; stroke-linejoin: round; }
+  .scene { position: absolute; inset: 0; clip-path: polygon(44.2% 3%, 98.2% 3%, 98.2% 97%, 41.2% 97%); }
+  .scene svg { position: absolute; left: 41.2%; top: 3%; width: 57%; height: 94%; }
+  /* Every part that changes on its own gets its own compositing layer: the static scenery (patterns, masks, gradients)
+     is rasterised once, a twinkling star re-rasterises only the star layer, a pose change only Tsuki's layer. Chrome on
+     Android rasterises a layer in full-width strips, so sharing one layer made each step redraw everything in the
+     strip. Measured on the Redmi A5 (night, desk scene): one layer 105 ms per step (median). */
+  .layer { will-change: transform; }
+  .pclock { position: absolute; left: 4.4%; top: 7.5%; width: 34%; height: 50%; display: flex; flex-direction: column; }
+  .tag { display: flex; align-items: center; gap: .6em; font-size: 3.4vh; letter-spacing: .2em; color: var(--mut); white-space: nowrap; }
+  .tag b { color: #000; background: var(--fg); font-weight: 700; letter-spacing: .08em; padding: .05em .45em; border-radius: 3px; }
+  .time { margin-top: 1vh; font-size: 27vh; font-weight: 200; line-height: .92; letter-spacing: -.035em; font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .time .c { margin: 0 .01em; opacity: .55; }
+  .date { margin-top: 1.6vh; font-size: 4.4vh; color: #d6d6d6; white-space: nowrap; }
+  .date .jp { margin-left: .5em; color: var(--mut); font-size: .86em; }
+  .pinfo { position: absolute; left: 4.4%; top: 66%; width: 32%; height: 27%; display: flex; flex-direction: column; justify-content: space-between; }
+  .wx { display: flex; align-items: center; gap: 4%; }
+  .wx svg { width: 9vh; height: 9vh; flex: none; } .wx svg * { fill: none; stroke: #fff; stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; }
+  .wx .t { font-size: 8.6vh; font-weight: 300; letter-spacing: -.02em; }
+  .wx .d { font-size: 3.1vh; line-height: 1.45; color: var(--mut); min-width: 0; } .wx .d b { color: #fff; font-weight: 500; }
+  .now { display: flex; align-items: baseline; gap: .7em; font-size: 3.2vh; color: #d0d0d0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .now i { font-style: normal; font-size: .82em; letter-spacing: .18em; color: #767676; flex: none; }
+  /* the manga narration box (vertical Japanese) in the scene's corner */
+  .cap { position: absolute; right: 3.6%; top: 7%; padding: 1.6vh .9vh; background: #fff; color: #000; writing-mode: vertical-rl; font-size: 3.6vh; font-weight: 800;
+         letter-spacing: .12em; line-height: 1; border-radius: 2px; }
+  .cap small { display: block; margin-top: .9vh; font: 600 2.1vh Roboto, sans-serif; letter-spacing: .1em; writing-mode: vertical-rl; text-orientation: mixed; }
+  /* speech bubble (both modes) */
+  .bubble { position: absolute; z-index: 5; max-width: 34%; padding: 1.7vh 2.4vh; border: 1.6px solid #fff; border-radius: 18px; background: #000; color: #fff;
+            font-size: 3.5vh; line-height: 1.38; display: none; }
+  .bubble.on { display: block; }
+  .bubble::after { content: ""; position: absolute; left: var(--tail, 70%); bottom: -7px; width: 12px; height: 12px; background: #000;
+                   border-right: 1.6px solid #fff; border-bottom: 1.6px solid #fff; transform: rotate(45deg); }
+  .bubble.dream { border-style: dashed; border-color: #9a9a9a; color: #c4c4c4; }
+  .bubble.dream::after { border-color: #9a9a9a; border-style: dashed; }
+  .bubble.shout { border-width: 2.6px; border-radius: 8px; }
+  /* focus mode: the clock panel shows the countdown */
+  .pclock.focus .time { letter-spacing: -.02em; }
+  .bar { height: 3px; margin-top: 2.2vh; background: #262626; border-radius: 2px; overflow: hidden; display: none; }
+  .bar i { display: block; height: 100%; background: #fff; transform-origin: left; }
+  .pclock.focus .bar { display: block; }
+  /* ---------- night: full bleed sky, dim clock, Tsuki asleep ---------- */
+  .night .sky { position: absolute; inset: 0; width: 100%; height: 100%; }
+  .nclock { position: absolute; left: 6%; top: 50%; transform: translateY(-54%); color: #cfcfcf; }
+  .nclock .tag { color: #6a6a6a; } .nclock .tag b { background: #bdbdbd; }
+  .nclock .time { font-size: 30vh; font-weight: 100; color: #d4d4d4; }
+  .nclock .date { color: #8a8a8a; }
+  .nclock .tmr { margin-top: 3.2vh; display: flex; align-items: center; gap: .7em; font-size: 3.2vh; color: #7a7a7a; }
+  .nclock .tmr svg { width: 4.4vh; height: 4.4vh; } .nclock .tmr svg * { fill: none; stroke: #9a9a9a; stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; }
+  .nclock .tmr b { color: #b4b4b4; font-weight: 500; }
+  .hint { position: absolute; left: 6%; bottom: 6vh; font-size: 2.6vh; letter-spacing: .16em; color: #444; }
+  .drift { transition: none; }
+  @media (prefers-reduced-motion: reduce) { .mode.fade { transition: none } }
+</style>
+<div class="mode day" id="day">
+  <div class="scene"><svg id="dbg" class="layer" viewBox="-75 0 350 254" preserveAspectRatio="xMidYMax slice"></svg>
+    <svg id="dsvg" class="layer" viewBox="-75 0 350 254" preserveAspectRatio="xMidYMax slice"></svg>
+    <div class="cap jp" id="cap">読書中<small>ЦУКИ</small></div></div>
+  <svg class="frames" viewBox="0 0 1000 1000" preserveAspectRatio="none" aria-hidden="true">
+    <polygon points="18,30 418,30 399.8,600 18,600"/><polygon points="18,630 398.9,630 388,970 18,970"/><polygon points="442,30 982,30 982,970 412,970"/></svg>
+  <div class="pclock" id="pclock">
+    <div class="tag" id="dtag"><b class="jp">今日</b><span id="dwd">—</span></div>
+    <div class="time" id="dtime">--:--</div>
+    <div class="date" id="ddate"></div>
+    <div class="bar"><i id="fbar"></i></div>
+  </div>
+  <div class="pinfo">
+    <div class="wx" id="wx"><div class="d">Погода загружается…</div></div>
+    <div class="now" id="dnow"><i>ЦУКИ СЕЙЧАС</i><span id="dact">—</span></div>
+  </div>
+</div>
+<div class="mode night" id="night">
+  <svg class="sky layer" id="nbg" viewBox="-300 -4 560 258" preserveAspectRatio="xMaxYMax slice"></svg>
+  <svg class="sky layer" id="nstars" viewBox="-300 -4 560 258" preserveAspectRatio="xMaxYMax slice"></svg>
+  <svg class="sky layer" id="nsvg" viewBox="-300 -4 560 258" preserveAspectRatio="xMaxYMax slice"></svg>
+  <div class="nclock drift" id="nclock">
+    <div class="tag"><b class="jp">おやすみ</b>СПОКОЙНОЙ НОЧИ</div>
+    <div class="time" id="ntime">--:--</div>
+    <div class="date" id="ndate"></div>
+    <div class="tmr" id="tmr"></div>
+  </div>
+  <div class="hint">коснись, чтобы разбудить</div>
+</div>
+<div class="bubble" id="bubble"></div>
+__INCLUDE_TSUKI__
+<script>
+  // The idle screen (the panel's home page after a few minutes without a touch).
+  //   day   (NIGHT_TO..NIGHT_FROM): a manga page — clock, weather, and Tsuki busy with something. Every time the screen
+  //         opens she is doing something else (14 activities, some only in the morning / afternoon).
+  //   night (NIGHT_FROM..NIGHT_TO): a dim clock under the stars and Tsuki asleep (3 ways), mumbling in her sleep.
+  //   focus (the focus timer from «Главная» is running): the countdown replaces the clock and she studies with you.
+  // A tap: she reacts, and the panel goes back to «Главная». Motion is stepped from one JS timer (one repaint every
+  // 1.2-1.6 s, nothing at all while the page is not on screen); see README, "Smoothness".
+  var $ = function (id) { return document.getElementById(id); };
+  var NIGHT_FROM = hm('__NIGHT_FROM__', 20 * 60), NIGHT_TO = hm('__NIGHT_TO__', 7 * 60);
+  function hm(s, def) { var m = /^(\d{1,2}):(\d{2})$/.exec(s); return m ? +m[1] * 60 + +m[2] : def; }
+  function pbNow() { return new Date(Date.now() + ((window.PB_PREVIEW || {}).offsetMs || 0)); }
+  function live() { return vis && !document.hidden; }
+  function r(a) { return a[Math.floor(Math.random() * a.length)]; }
+  function pad(n) { return n < 10 ? '0' + n : '' + n; }
+  var RU = ['воскресенье', 'понедельник', 'вторник', 'среда', 'четверг', 'пятница', 'суббота'], WD = ['日', '月', '火', '水', '木', '金', '土'];
+  var MON = ['января', 'февраля', 'марта', 'апреля', 'мая', 'июня', 'июля', 'августа', 'сентября', 'октября', 'ноября', 'декабря'];
+  function isNight(d) { var m = d.getHours() * 60 + d.getMinutes(); return NIGHT_FROM > NIGHT_TO ? (m >= NIGHT_FROM || m < NIGHT_TO) : (m >= NIGHT_FROM && m < NIGHT_TO); }
+
+  // ---------------------------------------------------------------- memory (read only; «Главная» writes it)
+  var MEM_BASE = '__BASE__', MEM_KEY = '__KEY__', mem = { aff: 30, focus: {} };
+  var online = !!(MEM_BASE && MEM_KEY && MEM_BASE.indexOf('http') === 0);
+  function memLoad(done) {
+    if (!online) { if (window.PB_PREVIEW && PB_PREVIEW.mem) mem = Object.assign(mem, PB_PREVIEW.mem); if (window.phonebox && phonebox.data.focus) mem.focus = { until: Date.now() + phonebox.data.focus * 60000, len: 25 }; return done && done(); }
+    fetch(MEM_BASE + '/mem?k=' + encodeURIComponent(MEM_KEY) + '&_=' + Date.now(), { cache: 'no-store' })
+      .then(function (x) { return x.json(); }).then(function (o) { if (o && o.v === 1) mem = o; mem.focus = mem.focus || {}; }).catch(function () {})
+      .then(function () { done && done(); });
+  }
+  function tier() { return mem.aff >= 75 ? 'dere' : mem.aff >= 50 ? 'warm' : mem.aff >= 25 ? 'cool' : 'tsun'; }
+  function focusLeft() { return mem.focus && !mem.focus.rest ? Math.max(0, (mem.focus.until || 0) - Date.now()) : 0; }
+
+  // ---------------------------------------------------------------- scenery
+  var DOTS = '<pattern id="dots" width="4" height="4" patternUnits="userSpaceOnUse"><circle cx="2" cy="2" r=".9" fill="#fff"/></pattern>' +
+             '<pattern id="dots2" width="3" height="3" patternUnits="userSpaceOnUse"><circle cx="1.5" cy="1.5" r=".7" fill="#fff"/></pattern>';
+  // what the window shows, from today's real sunrise / sunset (Open-Meteo, local time); 7:00 / 18:00 without weather
+  function skyPhase(d) {
+    var dl = phonebox.data.weather && phonebox.data.weather.daily, rise = 420, set = 1080;
+    var t = function (s, def) { var m = /T(\d\d):(\d\d)/.exec(s || ''); return m ? +m[1] * 60 + +m[2] : def; };
+    if (dl && dl.sunrise) rise = t(dl.sunrise[0], rise);
+    if (dl && dl.sunset) set = t(dl.sunset[0], set);
+    var m = d.getHours() * 60 + d.getMinutes();
+    return m < rise - 30 || m > set + 40 ? 'dark' : m < rise + 150 ? 'morning' : m > set - 70 ? 'sunset' : 'day';
+  }
+  function daySky(ph) {
+    // a window onto Almaty: sky tone, the Alatau ridge with snow, and the sun / the sunset / the moon
+    var eve = ph === 'sunset', morn = ph === 'morning', dark = ph === 'dark', sun;
+    if (dark) {
+      sun = '<g transform="translate(150 44)"><circle r="13" fill="url(#dots)" opacity=".7"/><circle r="13" fill="none" stroke="#fff" stroke-width="1.6"/>' +
+        '<circle cx="7" cy="-5" r="12" fill="#000"/></g>' +
+        '<g fill="#fff"><circle cx="30" cy="30" r="1"/><circle cx="64" cy="22" r=".8"/><circle cx="82" cy="54" r="1.1"/><circle cx="118" cy="30" r=".8"/><circle cx="176" cy="70" r="1"/><circle cx="44" cy="74" r=".8"/><circle cx="128" cy="76" r="1"/></g>';
+    } else if (eve) {
+      sun = '<g clip-path="url(#win)"><circle cx="146" cy="116" r="30" fill="#fff"/><path d="M110 100h80M110 108h80M110 115h80M110 121h80" stroke="#000" stroke-width="2.2"/></g>' +
+        '<path class="st" style="stroke-width:1.2;stroke-opacity:.6" d="M20 70h40M30 78h56M120 60h52"/>';
+    } else {
+      sun = '<circle cx="' + (morn ? 46 : 150) + '" cy="' + (morn ? 58 : 42) + '" r="12" fill="#fff"/>' +
+        '<path class="st" style="stroke-width:1.6" d="M' + (morn ? '46 38v-6M46 78v6M26 58h-6M66 58h6M32 44l-4 -4M60 44l4 -4M32 72l-4 4M60 72l4 4' : '150 22v-6M150 62v6M130 42h-6M170 42h6M136 28l-4 -4M164 28l4 -4M136 56l-4 4M164 56l4 4') + '"/>';
+    }
+    var clouds = dark ? '' : '<path class="st" style="stroke-width:1.5" d="M' + (morn ? '118' : '30') + ' 62c0 -8 10 -10 14 -5 3 -6 14 -6 15 2 6 -1 9 7 3 9H' + (morn ? '120' : '32') + 'c-4 0 -5 -5 -2 -6Z"/>' +
+      '<path class="st" style="stroke-width:1.4;stroke-opacity:.8" d="M' + (morn ? '150' : '120') + ' 84c0 -6 7 -7 10 -4 2 -4 10 -4 11 1 4 0 6 5 2 6h-21c-3 0 -4 -3 -2 -3Z"/>';
+    return '<defs>' + DOTS + '<linearGradient id="fadeUp" x1="0" y1="1" x2="0" y2="0"><stop offset="0" stop-color="#fff" stop-opacity="' + (eve ? .9 : dark ? .3 : .55) + '"/><stop offset="1" stop-color="#fff" stop-opacity="0"/></linearGradient>' +
+      '<mask id="toneMask"><rect x="8" y="10" width="184" height="158" fill="url(#fadeUp)"/></mask><clipPath id="win"><rect x="10" y="12" width="180" height="154"/></clipPath></defs>' +
+      // wall: calendar (today's date, live) and a shelf
+      '<g class="cal"><rect class="ln" x="-62" y="26" width="46" height="62" rx="2"/><rect class="whs" x="-62" y="26" width="46" height="14" rx="2"/>' +
+      '<text id="calM" class="jp" x="-39" y="37" text-anchor="middle" font-size="9" style="fill:#000">11月</text>' +
+      '<text id="calD" x="-39" y="70" text-anchor="middle" style="font:300 26px Roboto,sans-serif;fill:#fff">24</text>' +
+      '<text id="calW" class="jp" x="-39" y="82" text-anchor="middle" font-size="7" style="fill:#9a9a9a">火曜日</text>' +
+      '<circle class="wh" cx="-50" cy="24" r="2"/><circle class="wh" cx="-28" cy="24" r="2"/></g>' +
+      '<path class="st" d="M206 142h66"/><g transform="translate(222 142)">' + Tsuki.PROPS.books + '</g>' +
+      '<g transform="translate(254 142) scale(.55)">' + Tsuki.PROPS.plant + '</g>' +
+      // wall clock: its hands show the real time
+      '<circle class="ln" cx="226" cy="66" r="19"/><circle cx="226" cy="66" r="15.5" fill="none" stroke="#fff" stroke-width=".8" stroke-opacity=".45"/>' +
+      '<path class="st" style="stroke-width:1.4" d="M226 49.5v3M226 79.5v3M209.5 66h3M239.5 66h3"/>' +
+      '<path id="wch" class="st" style="stroke-width:2.2" d="M226 66V57"/><path id="wcm" class="st" style="stroke-width:1.5" d="M226 66V52"/><circle class="wh" cx="226" cy="66" r="1.8"/>' +
+      // window
+      '<rect x="8" y="10" width="184" height="158" fill="#000"/>' +
+      '<rect x="8" y="10" width="184" height="158" fill="url(#dots)" mask="url(#toneMask)" opacity=".5"/>' + sun +
+      '<path class="ln" style="stroke-width:1.4" d="M10 150L34 118 48 128 66 100 84 120 100 104 118 122 136 96 156 120 170 110 190 132V168H10Z"/>' +
+      '<path class="wh" style="opacity:' + (dark ? .45 : .85) + '" d="M66 100L60 108 66 106 72 110ZM136 96L129 106 136 103 143 108ZM100 104L95 110 101 109 106 112Z"/>' + clouds +
+      '<rect x="8" y="10" width="184" height="158" fill="none" stroke="#fff" stroke-width="3"/><path class="st" style="stroke-width:2.4" d="M100 10V168M8 92H192"/>' +
+      '<rect class="ln" x="2" y="166" width="196" height="7" rx="1"/>' +
+      // curtains with ties
+      '<path class="ln" d="M-2 4H28C24 40 32 70 22 96 30 120 24 150 30 176H-2Z"/><path class="st" style="stroke-width:1.1;stroke-opacity:.55" d="M8 8C6 40 12 70 6 96M16 8C14 40 20 70 14 96M8 100C6 130 10 150 8 172"/>' +
+      '<path class="ln" d="M202 4H172C176 40 168 70 178 96 170 120 176 150 170 176H202Z"/><path class="st" style="stroke-width:1.1;stroke-opacity:.55" d="M192 8C194 40 188 70 194 96M184 8C186 40 180 70 186 96M192 100C194 130 190 150 192 172"/>' +
+      '<path class="whs" d="M-2 92h30v7h-30zM172 92h30v7h-30z"/>' +
+      '<path class="st" style="stroke-width:3" d="M-20 4H220"/>';
+  }
+  // the desk in character coordinates. It comes in two parts so that arms can lie ON it (nap): the top surface is
+  // drawn before her, the front face after her (it hides her waist).
+  function deskTop() { return '<rect class="ln" x="-150" y="222" width="500" height="14"/><path class="st" style="stroke-width:2.6" d="M-150 222H350"/>'; }
+  function deskFront(extra) {
+    return '<rect class="ln" x="-150" y="234" width="500" height="34"/><path class="st" style="stroke-width:1.2;stroke-opacity:.55" d="M-150 234H350"/>' +
+      '<path class="st" style="stroke-width:1;stroke-opacity:.3" d="M-120 244c40 -2 80 2 120 0M110 252c40 -2 80 2 130 0M-40 260c50 -2 90 2 140 0"/>' + (extra || '');
+  }
+  function desk(extra) { return deskTop() + deskFront(extra); }
+  // night sky in two layers: nightBg() never changes (patterns, masks, gradients), nightStars() twinkles above it
+  function nightBg() {
+    return '<defs>' + DOTS + '<mask id="cres"><rect x="-60" y="-60" width="120" height="120" fill="#fff"/><circle cx="14" cy="-9" r="30" fill="#000"/></mask>' +
+      '<linearGradient id="hz" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#fff" stop-opacity="0"/><stop offset="1" stop-color="#fff" stop-opacity=".5"/></linearGradient>' +
+      '<mask id="hzm"><rect x="-400" y="120" width="800" height="140" fill="url(#hz)"/></mask>' +
+      '<radialGradient id="glow"><stop offset="0" stop-color="#fff" stop-opacity=".16"/><stop offset="1" stop-color="#fff" stop-opacity="0"/></radialGradient></defs>' +
+      '<circle cx="222" cy="42" r="44" fill="url(#glow)"/>' +
+      '<g transform="translate(222 42)" mask="url(#cres)"><circle r="26" fill="url(#dots2)" opacity=".45"/><circle r="25" fill="none" stroke="#cfcfcf" stroke-width="1.6"/></g>' +
+      '<rect x="-400" y="120" width="800" height="140" fill="url(#dots)" mask="url(#hzm)" opacity=".22"/>' +
+      '<path d="M-400 196C-220 186 -150 192 -80 184S60 178 130 186 230 182 400 186V300H-400Z" fill="#000"/>' +
+      '<path d="M-400 196C-220 186 -150 192 -80 184S60 178 130 186 230 182 400 186" fill="none" stroke="#3a3a3a" stroke-width="1"/>';
+  }
+  function nightStars() {
+    var seed = 7, s = '', rnd = function () { seed = (seed * 9301 + 49297) % 233280; return seed / 233280; };
+    for (var i = 0; i < 46; i++) {
+      var x = -300 + rnd() * 560, y = rnd() * 150, big = rnd() < .22;
+      s += big ? '<path class="star" d="M' + x.toFixed(0) + ' ' + (y - 3).toFixed(0) + 'l.8 2.2 2.2 .8 -2.2 .8 -.8 2.2 -.8 -2.2 -2.2 -.8 2.2 -.8z" fill="#fff" opacity=".25"/>'
+              : '<circle class="star" cx="' + x.toFixed(0) + '" cy="' + y.toFixed(0) + '" r="' + (rnd() < .5 ? .7 : 1) + '" fill="#fff" opacity=".18"/>';
+    }
+    return '<g id="stars">' + s + '</g><path id="shoot" d="M0 0l-26 10" stroke="#fff" stroke-width="1.2" stroke-linecap="round" opacity="0"/>';
+  }
+
+  // ---------------------------------------------------------------- activities (day)
+  // A frame: {p: pose, pr: props, m: mood, f: face slots, l: look [dx,dy], t: tilt, sfx: text}. Poses are arm points.
+  var REST = { L: [44, 238, 78, 228, 'fist'], R: [156, 238, 122, 228, 'fist'] };
+  var BOOK = { L: [48, 236, 76, 208, 'fist'], R: [152, 236, 124, 208, 'fist'] };
+  var CUP = { L: [50, 236, 94, 222, 'fist'], R: [154, 236, 114, 214, 'fist'] }, SIP = { L: [50, 236, 94, 222, 'fist'], R: [160, 214, 112, 170, 'fist'] };
+  var PAD = { L: [48, 236, 84, 210, 'fist'], R: [152, 236, 116, 210, 'fist'] }, PAD2 = { L: [48, 236, 84, 212, 'fist'], R: [152, 236, 116, 208, 'fist'] };
+  var PEN = function (x, y) { return { L: [46, 238, 80, 226, 'fist'], R: [156, 236, x, y, 'fist'] }; };
+  var SHOW = { L: [44, 220, 78, 188, 'fist'], R: [156, 220, 122, 188, 'fist'] };
+  var CAN = { L: [44, 238, 78, 228, 'fist'], R: [168, 200, 132, 178, 'fist'] };
+  var KNIT = { L: [48, 236, 88, 210, 'fist'], R: [152, 236, 112, 210, 'fist'] }, KNIT2 = { L: [48, 236, 86, 208, 'fist'], R: [152, 236, 114, 212, 'fist'] };
+  var PHONE = { L: [44, 238, 80, 228, 'fist'], R: [158, 222, 118, 184, 'fist'] };
+  var PET = function (x) { return { L: [30, 222, x, 194, 'open'], R: [156, 238, 122, 228, 'fist'] }; };
+  var EARS = { L: [26, 180, 40, 126, 'open'], R: [174, 180, 160, 126, 'open'] };
+  var BRUSH = function (y) { return { L: [44, 238, 78, 228, 'fist'], R: [176, 200, 168, y, 'fist'] }; };
+  var NAP = { L: [40, 232, 116, 226, 'none'], R: [160, 232, 84, 224, 'none'], order: 'RL' };
+  var ACTS = [
+    { id: 'read', ru: 'читает мангу', jp: '読書中', m: 'read', ms: 1500, deck: 'mug',
+      fr: [{ p: BOOK, pr: [{ k: 'book', x: 100, y: 214 }], l: [-3, 3] }, { p: BOOK, l: [3, 3] }, { p: BOOK, l: [-3, 3] }, { p: BOOK, pr: [{ k: 'bookflip', x: 100, y: 214 }], l: [3, 2], sfx: 'ペラッ' }],
+      ev: [{ m: 'shy', say: 'Т-тут такая сцена… НЕ ПОДГЛЯДЫВАЙ!' }, { m: 'cry', say: 'Он… он умер?! Нет-нет-нет… Я не плачу! Это пыль!' }, { m: 'smug', say: 'Это не манга. Это учебник по информатике. В картинках.' }] },
+    { id: 'tea', ru: 'пьёт чай', jp: '休憩中', m: 'normal', ms: 1300, deck: 'books',
+      fr: [{ p: CUP, pr: [{ k: 'cup', at: 'R', dx: -4, dy: -2 }, { k: 'steam1', at: 'R', dx: -4, dy: -6, front: true }] }, { p: CUP, pr: [{ k: 'cup', at: 'R', dx: -4, dy: -2 }, { k: 'steam2', at: 'R', dx: -4, dy: -6, front: true }] },
+           { p: SIP, pr: [{ k: 'cup', at: 'R', dx: -6, dy: 0 }], m: 'happy', f: { m: 'flat', fx: '' }, sfx: 'ズズ…' }, { p: SIP, pr: [{ k: 'cup', at: 'R', dx: -6, dy: 0 }], m: 'happy', f: { m: 'flat', fx: '' } },
+           { p: CUP, pr: [{ k: 'cup', at: 'R', dx: -4, dy: -2 }, { k: 'steam1', at: 'R', dx: -4, dy: -6, front: true }], m: 'happy', sfx: 'ほっ' }],
+      ev: [{ m: 'smug', say: 'Чай остывает, пока ты тут пялишься.' }, { m: 'shy', say: 'Хочешь? …Сам заваришь! Ч-чайник там.' }] },
+    { id: 'game', ru: 'играет в приставку', jp: 'ゲーム中', m: 'determined', ms: 1100, deck: 'mug',
+      fr: [{ p: PAD, pr: [{ k: 'console', x: 100, y: 216 }], sfx: 'カチカチ' }, { p: PAD2, l: [1, 3] }, { p: PAD, l: [-1, 3], sfx: 'カチッ' }, { p: PAD2, l: [0, 3] }],
+      ev: [{ m: 'rage', say: 'НЕЧЕСТНО! Этот босс читер!!', sfx: 'ムカッ!' }, { m: 'smug', say: 'Изи. Я гений. Можешь аплодировать.', sfx: 'やった!' }, { m: 'pout', say: 'Не смотри! Ты меня отвлекаешь!' }] },
+    { id: 'eat', ru: 'ест онигири', jp: 'もぐもぐ', m: 'happy', ms: 1200, deck: 'mug',
+      fr: [{ p: CUP, pr: [{ k: 'onigiri', at: 'R', dx: -4, dy: 0 }] }, { p: SIP, pr: [{ k: 'onigiri', at: 'R', dx: -6, dy: 6 }], m: 'eat', sfx: 'もぐ' },
+           { p: CUP, pr: [{ k: 'onigiri', at: 'R', dx: -4, dy: 0 }], m: 'eat', f: { m: 'chew2' } }, { p: CUP, pr: [{ k: 'onigiri', at: 'R', dx: -4, dy: 0 }], m: 'eat', sfx: 'もぐもぐ' }],
+      ev: [{ m: 'tsun', say: 'Это моё! Не делюсь. …Ладно, половинку. Потом.' }, { m: 'happy', say: 'С лососем! Лучший онигири во вселенной.' }] },
+    { id: 'music', ru: 'слушает музыку', jp: '音楽中', m: 'happy', acc: 'phones', ms: 900, deck: 'books',
+      fr: [{ p: EARS, t: -6, f: { fx: 'notes' } }, { p: EARS, t: 0, f: { fx: '' } }, { p: EARS, t: 6, f: { fx: 'notes2' }, sfx: '♪' }, { p: EARS, t: 0, f: { fx: '' } }],
+      ev: [{ m: 'shy', say: 'Я не подпеваю! …♪ ну… может, чуть-чуть.' }, { m: 'wink', say: 'Хороший трек. Добавлю в плейлист «не для тебя».' }] },
+    { id: 'draw', ru: 'рисует', jp: 'お絵描き', m: 'read', ms: 1000, deck: 'mug',
+      fr: [{ p: PEN(110, 218), pr: [{ k: 'sketch', x: 96, y: 228, front: true }, { k: 'pen', at: 'R', dx: 0, dy: 2, r: 28, front: true }] }, { p: PEN(118, 220), pr: [{ k: 'sketch', x: 96, y: 228, front: true }, { k: 'pen', at: 'R', dx: 0, dy: 2, r: 28, front: true }], sfx: 'シャッ' },
+           { p: PEN(104, 222), pr: [{ k: 'sketch', x: 96, y: 228, front: true }, { k: 'pen', at: 'R', dx: 0, dy: 2, r: 28, front: true }] }],
+      ev: [{ m: 'flustered', p: SHOW, pr: [{ k: 'doodle', x: 100, y: 196 }], say: 'Это не ты! Это… случайный человек! С твоей причёской!' }, { m: 'smug', say: 'Не мешай художнику. Шедевры требуют тишины.' }] },
+    { id: 'laptop', ru: 'сидит за ноутбуком', jp: '作業中', m: 'focus', ms: 1100, deck: 'mug',
+      fr: [{ p: REST, pr: [{ k: 'laptop', x: 100, y: 226, front: true }], l: [-2, 2], sfx: 'カタカタ' }, { p: REST, l: [2, 2] }, { p: REST, l: [0, 3], sfx: 'カタ' }],
+      ev: [{ m: 'smug', say: 'live:cpu' }, { m: 'think', say: 'Хм… кто так пишет циклы? А, это я. Неважно.' }] },
+    { id: 'plant', ru: 'поливает цветок', jp: '水やり', m: 'happy', ms: 1300, deck: 'books',
+      fr: [{ p: CAN, pr: [{ k: 'can', at: 'R', dx: 2, dy: -2, r: 28 }, { k: 'plant', x: 166, y: 222, front: true }] },
+           { p: CAN, pr: [{ k: 'can', at: 'R', dx: 2, dy: -2, r: 28 }, { k: 'plant', x: 166, y: 222, front: true }, { k: 'drops', x: 160, y: 192, front: true }], sfx: 'ちょろ' },
+           { p: CAN, pr: [{ k: 'can', at: 'R', dx: 2, dy: -2, r: 28 }, { k: 'plant', x: 166, y: 222, front: true }, { k: 'drops', x: 162, y: 198, front: true }] }],
+      ev: [{ m: 'shy', say: 'Расти большой… Не говори никому, что я с ним разговариваю.' }, { m: 'smug', say: 'Его зовут Кактус-сан. Он не кактус. Неважно.' }] },
+    { id: 'knit', ru: 'вяжет шарф', jp: '編み物中', m: 'read', ms: 1100, deck: 'mug',
+      fr: [{ p: KNIT, pr: [{ k: 'scarf', x: 100, y: 214 }, { k: 'needles', x: 100, y: 210, front: true }] }, { p: KNIT2, pr: [{ k: 'scarf', x: 100, y: 214 }, { k: 'needles', x: 100, y: 210, r: 8, front: true }], sfx: 'チクチク' }],
+      ev: [{ m: 'tsun', say: 'Это не для тебя! …Какой у тебя любимый цвет? Просто так спрашиваю.' }, { m: 'pout', say: 'Петля убежала… Это не я плохо вяжу, это нитки плохие!' }] },
+    { id: 'phone', ru: 'листает телефон', jp: 'スマホ', m: 'read', ms: 1300, deck: 'books',
+      fr: [{ p: PHONE, pr: [{ k: 'phone', at: 'R', dx: -2, dy: -8 }], l: [2, 3] }, { p: PHONE, l: [3, 2], sfx: 'スッ' }, { p: PHONE, l: [2, 3] }],
+      ev: [{ m: 'tsun', say: 'Я не жду твоего сообщения. Просто листаю. Совсем другое.' }, { m: 'laugh', say: 'Хи-хи, тут котик упал со стола… То есть мне не смешно!' }] },
+    { id: 'cat', ru: 'гладит Моти', jp: 'モチと', m: 'love', ms: 1200, deck: 'mug',
+      fr: [{ p: PET(46), pr: [{ k: 'cat', x: 36, y: 218, front: true }], cls: 'cat-purr', sfx: 'ゴロゴロ' }, { p: PET(38), cls: 'cat-purr' }, { p: PET(46), cls: '' }],
+      ev: [{ m: 'smug', say: 'Это Моти. Он мой. …Можешь погладить. Потом. Если заслужишь.' }, { m: 'happy', say: 'Моти, кто хороший котик? Ты! А он — нет. Он бака.' }] },
+    { id: 'study', ru: 'учится', jp: '勉強中', m: 'read', acc: 'glasses', ms: 1200, deck: 'books',
+      fr: [{ p: PEN(110, 220), pr: [{ k: 'notebook', x: 98, y: 228, front: true }, { k: 'pen', at: 'R', dx: 0, dy: 2, r: 28, front: true }] }, { p: PEN(118, 222), sfx: 'カリカリ' },
+           { p: PEN(106, 223) }, { p: PEN(112, 221), m: 'think' }],
+      ev: [{ m: 'determined', say: 'Поняла! Я гений. Очки — для стиля, если что.', sfx: 'ひらめいた!' }, { m: 'think', say: 'Почему в японском три алфавита?! Кто это придумал?!' }] },
+    { id: 'stretch', ru: 'потягивается', jp: 'のび~', m: 'yawn', ms: 1400, deck: 'mug', from: 7, to: 11,
+      fr: [{ p: 'up', sfx: 'のび~' }, { p: 'up', m: 'happy' }, { p: REST, m: 'sleepy' }, { p: REST, m: 'normal' }],
+      ev: [{ m: 'sleepy', say: 'Ф-фуа… Доброе утро. Я не соня! Просто… потягиваюсь.' }, { m: 'pout', say: 'Кто придумал утро? Я хочу поговорить с этим человеком.' }] },
+    { id: 'siesta', ru: 'дремлет', jp: 'お昼寝', m: 'sleep', ms: 1600, deck: 'mug', from: 13, to: 17, nap: true,
+      fr: [{ p: NAP, f: { fx: 'zzz bubble' } }, { p: NAP, f: { fx: 'zzz2 bubble2' } }],
+      ev: [{ m: 'sleep', say: '…zzz… я не сплю… я… проверяю… с закрытыми глазами…', dream: true }] }
+  ];
+  var FOCUS_ACT = { id: 'focus', ru: 'учится вместе с тобой', jp: '集中', m: 'focus', acc: 'glasses', ms: 1300, deck: 'books',
+    fr: [{ p: PEN(110, 220), pr: [{ k: 'notebook', x: 98, y: 228, front: true }, { k: 'pen', at: 'R', dx: 0, dy: 2, r: 28, front: true }] }, { p: PEN(118, 222), sfx: 'カリカリ' }, { p: PEN(106, 223) }],
+    ev: [{ m: 'determined', say: 'Тс-с. Работаем. Я тоже работаю. Не отвлекайся.' }, { m: 'focus', say: 'Ещё немного. Ты справишься… не то чтобы я в тебя верила.' }] };
+
+  // ---------------------------------------------------------------- sleeping (night)
+  // Each night scene: wrap = where the (scaled) character group sits in the sky; under / front are drawn in character
+  // coordinates before / after her; tk is her own transform (the futon lays her down).
+  var NIGHTS = [
+    { id: 'hug', ru: 'спит в обнимку с подушкой', jp: 'すやすや', wrap: 'translate(52 68) scale(.7)',
+      bg: function () { return '<path d="M-300 251H260" stroke="#2c2c2c" stroke-width="1"/>'; },
+      front: function () { return '<g transform="translate(206 238) rotate(8) scale(1.1)">' + Tsuki.PROPS.plush + '</g>'; },
+      pose: { L: [38, 214, 72, 236, 'fist'], R: [162, 214, 128, 236, 'fist'] }, props: [{ k: 'pillow', x: 100, y: 226 }], tilt: -11 },
+    { id: 'desk', ru: 'уснула за столом', jp: '寝落ち', wrap: 'translate(52 66) scale(.74)', nap: true,
+      bg: function () { return '<circle cx="44" cy="196" r="74" fill="url(#glow)"/>'; },
+      under: function () { return deskTop() + '<g transform="translate(-30 222)">' + Tsuki.PROPS.lamp + '</g>'; },
+      front: function () { return deskFront() + '<g transform="translate(206 222)">' + Tsuki.PROPS.mug + '</g>'; },
+      pose: { L: [40, 230, 118, 226, 'none'], R: [160, 230, 82, 224, 'none'], order: 'RL' }, props: [] },
+    { id: 'futon', ru: 'спит на футоне', jp: 'ぐっすり', wrap: 'translate(30 70) scale(.68)', futon: true, tk: 'rotate(-90 100 150)',
+      bg: function () { return '<path d="M-90 252L-20 168H190L250 252Z" fill="#fff" opacity=".04"/>'; },
+      under: function () {  // mattress (quilted) and the pillow under her head
+        return '<path d="M-60 86H290V214H-60Z" fill="#070707" stroke="#6a6a6a" stroke-width="1.4" stroke-dasharray="4 4"/>' +
+          '<path d="M-30 100C-40 100 -42 110 -42 150S-40 200 -30 200H70C80 200 82 190 82 150S80 100 70 100Z" class="ln"/>' +
+          '<path class="st" style="stroke-width:1.1;stroke-opacity:.45" d="M-30 112Q20 118 70 112M-30 188Q20 182 70 188"/>';
+      },
+      front: function () {  // blanket over her body with little moons, the plush on top
+        return '<path class="ln" d="M112 92C140 84 220 84 268 92 278 130 278 172 268 210 220 218 140 218 112 210 104 172 104 130 112 92Z"/>' +
+          '<path class="whs" d="M112 92C105 130 105 172 112 210H128C121 172 121 130 128 92Z"/>' +
+          '<path class="st" style="stroke-width:1.1;stroke-opacity:.45" d="M170 92C166 130 168 172 172 214M222 90C226 130 222 172 226 214"/>' +
+          '<path class="wh" style="opacity:.55" d="M150 128a5 5 0 1 0 6 6 4 4 0 1 1 -6 -6zM200 176a5 5 0 1 0 6 6 4 4 0 1 1 -6 -6zM246 120l1 2.5 2.5 1 -2.5 1 -1 2.5 -1 -2.5 -2.5 -1 2.5 -1zM190 116l1 2.5 2.5 1 -2.5 1 -1 2.5 -1 -2.5 -2.5 -1 2.5 -1zM250 190a5 5 0 1 0 6 6 4 4 0 1 1 -6 -6z"/>' +
+          '<g transform="translate(150 204) rotate(-6) scale(1.05)">' + Tsuki.PROPS.plush + '</g>';
+      },
+      pose: 'rest', props: [] }
+  ];
+  var TALK = ['…бака… не уходи… zzz', '…ещё пять минуточек…', '…я не… сплю… zzz', '…мур… то есть ХМФ… zzz', '…ноутбук… выключи… бака…',
+              '…ты… молодец… сегодня… zzz', '…не смотри… как я сплю…', '…люблю… клубнику… zzz', '…Моти… отдай пудинг…'];
+  var TALK_DERE = ['…останься… ещё чуть-чуть… zzz', '…твоя рука… тёплая…', '…я тебя… н-нет… ничего… zzz', '…спокойной ночи… бака… ♡'];
+  var TALK_TSUN = ['…хмф… даже во сне… бака…', '…я не… скучаю… zzz'];
+  var WAKE = ['Ч-что?! Я не спала!', 'Кья! Предупреждать надо!', 'Я… я просто глаза закрыла!', 'Хмф. Ладно, я проснулась. Ради тебя. НЕМНОГО.'];
+  var STARTLE = ['Ой! Я… я не бездельничала!', 'Э-эй! Стучаться надо!', 'А, это ты. Я как раз… заканчивала.', 'Ты вернулся! В смысле… ну, привет.'];
+
+  // ---------------------------------------------------------------- state
+  var vis = false, mode = '', act = null, rig = null, frame = 0, stepT = null, talkT = null, lastAct = '', lastNight = '', waking = false;
+  var bubble = $('bubble'), sfxText = null, svg = null;
+
+  var SFX_STYLE = 'font:900 22px \'Noto Sans CJK JP\',\'Noto Sans JP\',\'Yu Gothic\',sans-serif;fill:#000;stroke:#fff;stroke-width:1.6;paint-order:stroke';
+  function build(kind) {
+    var h = pbNow().getHours();
+    if (kind === 'day') {
+      svg = $('dsvg');
+      var deco = act.deck === 'books' ? '<g transform="translate(212 222)">' + Tsuki.PROPS.mug + '</g><g transform="translate(250 222)">' + Tsuki.PROPS.books + '</g>'
+                                      : '<g transform="translate(-48 222)">' + Tsuki.PROPS.mug + '</g><g transform="translate(244 222)">' + Tsuki.PROPS.books + '</g>';
+      if (act.id === 'plant') deco = '<g transform="translate(-48 222)">' + Tsuki.PROPS.mug + '</g>';
+      $('nbg').innerHTML = $('nstars').innerHTML = $('nsvg').innerHTML = '';  // ids (patterns, masks) must exist only once
+      $('dbg').innerHTML = '<g class="tk">' + daySky(skyPhase(pbNow())) + '</g>';
+      // character, desk and props share one scaled group (character coordinates), the room stays in scene coordinates
+      svg.innerHTML = '<g transform="translate(24 56) scale(.78)">' +
+        (act.nap ? '<g class="tk">' + deskTop() + '</g><g id="who"></g><g class="tk">' + deskFront(deco) + '</g>' : '<g id="who"></g><g class="tk">' + desk(deco) + '</g>') +
+        '<g class="tk" id="front"></g><text id="sfx" class="jp" x="172" y="150" style="' + SFX_STYLE + ';display:none" transform="rotate(-10 172 150)"></text></g>';
+      var d = pbNow(); $('calM').textContent = (d.getMonth() + 1) + '月'; $('calD').textContent = d.getDate();
+      $('calW').textContent = WD[d.getDay()] + '曜日';
+      rig = Tsuki.create(svg.querySelector('#who'), { acc: act.acc || '', mood: act.m });
+      if (act.nap) napHead();
+      $('cap').innerHTML = act.jp + '<small>ЦУКИ</small>';
+      $('dact').textContent = act.ru;
+      wallClock();
+    } else {
+      svg = $('nsvg');
+      var n = act;
+      $('dbg').innerHTML = $('dsvg').innerHTML = '';
+      $('nbg').innerHTML = nightBg() + (n.bg ? n.bg() : '');
+      $('nstars').innerHTML = nightStars();
+      svg.innerHTML =
+        '<g transform="' + n.wrap + '" style="--tk-line:#c9c9c9"><g class="tk">' + (n.under ? n.under() : '') + '</g><g id="who" transform="' + (n.tk || '') + '"></g>' +
+        '<g class="tk" id="front">' + (n.front ? n.front() : '') + '</g></g>' +
+        (n.futon ? '<g id="zz" style="font:600 13px Roboto,sans-serif;fill:#c9c9c9"><text x="18" y="132">z</text><text x="6" y="116" style="font-size:18px">Z</text></g>' : '') +
+        '<text id="sfx" class="jp" x="186" y="150" style="font:900 15px \'Noto Sans CJK JP\',\'Noto Sans JP\',\'Yu Gothic\',sans-serif;fill:#000;stroke:#8a8a8a;stroke-width:1.1;paint-order:stroke" transform="rotate(-8 186 150)">' + n.jp + '</text>';
+      rig = Tsuki.create(svg.querySelector('#who'), { outfit: 'pj', acc: 'cap', mood: 'sleep', pose: n.pose });
+      rig.props(n.props);
+      rig.tilt(n.tilt || -9);
+      if (n.nap) napHead();
+      if (n.futon) rig.face({ fx: 'bubble' });
+    }
+    sfxText = svg.querySelector('#sfx');
+  }
+  function napHead() { rig.tilt(-22, -6, 50); if (mode === 'night' || act.m === 'sleep') rig.face({ fx: 'zzz bubble' }); }
+  function wallClock() {
+    var d = pbNow(), h = $('wch'), m = $('wcm');
+    if (!h) return;
+    h.setAttribute('transform', 'rotate(' + ((d.getHours() % 12) * 30 + d.getMinutes() / 2) + ' 226 66)');
+    m.setAttribute('transform', 'rotate(' + d.getMinutes() * 6 + ' 226 66)');
+  }
+
+  var FORCE = window.PB_PREVIEW ? new URLSearchParams(location.search).get('act') : null;  // preview only: ?act=read
+  function pickAct() {
+    if (focusLeft() > 0) return FOCUS_ACT;
+    var h = pbNow().getHours(), ok = ACTS.filter(function (a) { return a.id !== lastAct && (a.from == null || (h >= a.from && h < a.to)); });
+    var a = ACTS.filter(function (x) { return x.id === FORCE; })[0] || r(ok); lastAct = a.id; return a;
+  }
+  function pickNight() {
+    var ok = NIGHTS.filter(function (n) { return n.id !== lastNight; }), n = NIGHTS.filter(function (x) { return x.id === FORCE; })[0] || r(ok);
+    lastNight = n.id; return n;
+  }
+
+  function apply(fr) {
+    var P = fr.p || act._p;
+    if (fr.p) { rig.pose(fr.p); act._p = typeof fr.p === 'string' ? Tsuki.POSES[fr.p] : fr.p; }
+    if (fr.pr) act._pr = fr.pr;
+    if (fr.pr || fr.p) rig.props(act._pr || [], act._p, svg.querySelector('#front'));
+    rig.mood(fr.m || act.m, !!fr.l);
+    if (fr.f) rig.face(fr.f);
+    if (fr.l) rig.look(fr.l[0], fr.l[1]);
+    if (fr.t != null) rig.tilt(fr.t);
+    if (act.nap) napHead();
+    if (fr.cls != null) { rig.g.classList.toggle('cat-purr', fr.cls === 'cat-purr'); }
+    if (sfxText) { if (fr.sfx) { sfxText.textContent = fr.sfx; sfxText.style.display = ''; } else sfxText.style.display = 'none'; }
+  }
+  var blinkIn = 3;
+  function step() {
+    if (!live() || waking) return;
+    if (mode === 'night') return nightStep();
+    if (mode === 'day' && act.hold > 0) { act.hold--; if (act.hold === 0) apply(act.fr[frame % act.fr.length]); return blink(); }
+    frame++; apply(act.fr[frame % act.fr.length]);
+    blink();
+  }
+  function blink() { if (--blinkIn <= 0) { blinkIn = 2 + Math.floor(Math.random() * 3); rig.blink(); } }
+  var nstep = 0, shootAt = 0;
+  // Steps alternate between the two moving layers, so each repaint touches one of them: stars (and now and then a
+  // shooting star) on odd steps, her z's and nose bubble on even steps. Moving her whole body every step (breathing)
+  // re-rasterised a third of the screen, so she breathes through the bubble instead.
+  function nightStep() {
+    nstep++;
+    if (nstep % 2) {
+      var stars = $('nstars').querySelectorAll('.star');
+      for (var i = 0; i < 3; i++) { var s = stars[Math.floor(Math.random() * stars.length)]; if (s) s.setAttribute('opacity', s.getAttribute('opacity') > .3 ? '.18' : '.75'); }
+      var sh = $('shoot');
+      if (shootAt) { sh.setAttribute('opacity', '0'); shootAt = 0; }
+      else if (Math.random() < .05) { shootAt = 1; sh.setAttribute('transform', 'translate(' + (-200 + Math.random() * 300).toFixed(0) + ' ' + (10 + Math.random() * 60).toFixed(0) + ')'); sh.setAttribute('opacity', '.8'); }
+      return;
+    }
+    var big = nstep % 4 === 0;
+    if (act.futon) {  // lying down: the z's float in the room, not rotated with her head
+      rig.face({ fx: big ? 'bubble2' : 'bubble' });
+      var zz = svg.querySelector('#zz'); if (zz) zz.setAttribute('transform', big ? 'translate(-4 -6)' : '');
+    } else rig.face({ fx: big ? 'zzz2 bubble2' : 'zzz bubble' });
+  }
+
+  // ---------------------------------------------------------------- speech
+  var bubbleT = null;
+  function show(text, o) {
+    o = o || {};
+    clearTimeout(bubbleT);
+    bubble.className = 'bubble on' + (o.dream ? ' dream' : '') + (o.shout ? ' shout' : '');
+    bubble.textContent = text;
+    // place it next to her head
+    var hb = rig.head.getBoundingClientRect(), W = innerWidth, H = innerHeight, bw = bubble.offsetWidth, bh = bubble.offsetHeight;
+    var x = Math.max(W * .02, Math.min(W * .98 - bw, hb.left - bw * .55)), y = Math.max(H * .03, hb.top - bh - H * .02);
+    bubble.style.left = x + 'px'; bubble.style.top = y + 'px';
+    bubble.style.setProperty('--tail', Math.max(12, Math.min(bw - 24, hb.left + hb.width * .35 - x)) + 'px');
+    bubbleT = setTimeout(function () { bubble.className = 'bubble'; }, o.ms || 7000);
+  }
+  function liveLine(s) {
+    if (s !== 'live:cpu') return s;
+    var pc = phonebox.data.state && phonebox.data.state.pc;
+    if (!pc) return 'Твой ноутбук… молчит. Подозрительно.';
+    var cpu = Math.round(pc.cpu || 0), ram = pc.ramTotalGb ? Math.round(pc.ramUsedGb / pc.ramTotalGb * 100) : 0;
+    return cpu > 60 ? 'Процессор ' + cpu + '%! Кто-то тут усердно работает. Не ты.' : 'Процессор ' + cpu + '%, память ' + ram + '%. Скучно. Твой ноутбук отдыхает лучше тебя.';
+  }
+  function talk() {
+    if (!live() || waking) return;
+    if (mode === 'night') {
+      var pool = TALK.concat(tier() === 'dere' || tier() === 'warm' ? TALK_DERE : tier() === 'tsun' ? TALK_TSUN : []);
+      var h = pbNow().getHours(); if (h >= 1 && h < 5) pool = pool.concat(['…почему… ты не спишь… zzz… иди спать…', '…уже ' + h + ' часа… бака… zzz']);
+      var t = r(pool); if (/♡|тёплая|останься/.test(t)) rig.face({ m: 'smile', bl: 2 }); else rig.face({ m: 'sleepo', bl: 1 });
+      return show(t, { dream: true });
+    }
+    var e = r(act.ev);
+    if (e.p) { rig.pose(e.p); rig.props(e.pr || [], e.p, svg.querySelector('#front')); act.hold = 4; }
+    else act.hold = 3;
+    rig.mood(e.m); if (act.nap) napHead();
+    if (e.sfx && sfxText) { sfxText.textContent = e.sfx; sfxText.style.display = ''; }
+    var media = phonebox.data.state && phonebox.data.state.media;
+    var line = act.id === 'music' && media && media.playing && media.title && Math.random() < .6 ? '«' + media.title + '»… Хороший вкус. У меня. Это я включила.' : liveLine(e.say);
+    show(line, { dream: e.dream, shout: /^(rage|angry)$/.test(e.m) });
+  }
+
+  // ---------------------------------------------------------------- clock & info
+  var WMO = function (c, day) {
+    if (c === 0) return [day ? 'sun' : 'moon', 'Ясно', '晴れ'];
+    if (c <= 2) return ['cloud', 'Малооблачно', '晴れ時々曇り']; if (c === 3) return ['cloud', 'Пасмурно', 'くもり'];
+    if (c === 45 || c === 48) return ['fog', 'Туман', '霧']; if (c >= 51 && c <= 57) return ['rain', 'Морось', '霧雨'];
+    if ((c >= 61 && c <= 67) || (c >= 80 && c <= 82)) return ['rain', c >= 80 ? 'Ливень' : 'Дождь', '雨'];
+    if ((c >= 71 && c <= 77) || c === 85 || c === 86) return ['snow', 'Снег', '雪']; if (c >= 95) return ['storm', 'Гроза', '雷'];
+    return ['cloud', '—', ''];
+  };
+  var ICON = {
+    sun: '<circle cx="12" cy="12" r="4"/><path d="M12 2.5v2M12 19.5v2M2.5 12h2M19.5 12h2M5.3 5.3l1.4 1.4M17.3 17.3l1.4 1.4M5.3 18.7l1.4-1.4M17.3 6.7l1.4-1.4"/>',
+    moon: '<path d="M19 14.5A7.5 7.5 0 0 1 9.5 5a7.5 7.5 0 1 0 9.5 9.5z"/>', cloud: '<path d="M7 18h10a4 4 0 0 0 .6-7.95A6 6 0 0 0 6.1 10.5 3.75 3.75 0 0 0 7 18z"/>',
+    rain: '<path d="M7 15h10a4 4 0 0 0 .6-7.95A6 6 0 0 0 6.1 7.5 3.75 3.75 0 0 0 7 15z"/><path d="M9 18l-1 2.5M13 18l-1 2.5M17 18l-1 2.5"/>',
+    snow: '<path d="M7 15h10a4 4 0 0 0 .6-7.95A6 6 0 0 0 6.1 7.5 3.75 3.75 0 0 0 7 15z"/><path d="M9 19h.01M12 21h.01M15 19h.01"/>',
+    storm: '<path d="M7 15h10a4 4 0 0 0 .6-7.95A6 6 0 0 0 6.1 7.5 3.75 3.75 0 0 0 7 15z"/><path d="M12.5 15.5l-2 3h3l-2 3"/>', fog: '<path d="M4 9h16M6 13h12M4 17h16"/>'
+  };
+  var lastClock = '';
+  function clock(force) {
+    var d = pbNow(), fl = focusLeft(), key = d.getHours() + ':' + d.getMinutes() + (fl ? ':' + Math.ceil(fl / 1000) : '') + mode;
+    if (key === lastClock && !force) return; lastClock = key;
+    var t = pad(d.getHours()) + '<span class="c">:</span>' + pad(d.getMinutes());
+    var date = d.getDate() + ' ' + MON[d.getMonth()] + '<span class="jp">' + WD[d.getDay()] + '曜日</span>';
+    if (mode === 'day') {
+      var pc = $('pclock');
+      if (fl) {
+        var s = Math.ceil(fl / 1000);
+        pc.classList.add('focus'); $('dtag').innerHTML = '<b class="jp">集中</b>ФОКУС · ' + pad(d.getHours()) + ':' + pad(d.getMinutes());
+        $('dtime').innerHTML = pad(Math.floor(s / 60)) + '<span class="c">:</span>' + pad(s % 60);
+        $('fbar').style.transform = 'scaleX(' + (1 - fl / ((mem.focus.len || 25) * 60000)).toFixed(3) + ')';
+      } else {
+        pc.classList.remove('focus'); $('dtag').innerHTML = '<b class="jp">今日</b>' + RU[d.getDay()].toUpperCase(); $('dtime').innerHTML = t;
+      }
+      $('ddate').innerHTML = date;
+      wallClock();
+    } else { $('ntime').innerHTML = t; $('ndate').innerHTML = RU[d.getDay()] + ', ' + date; }
+  }
+  function weather() {
+    var w = phonebox.data.weather;
+    if (!w || !w.current) return;
+    var c = w.current, k = WMO(c.weather_code, c.is_day !== 0), dl = w.daily || {};
+    var hi = dl.temperature_2m_max && dl.temperature_2m_max[0], lo = dl.temperature_2m_min && dl.temperature_2m_min[0];
+    var sun = dl.sunset && dl.sunset[0] ? ' · закат ' + String(dl.sunset[0]).slice(11, 16) : '';
+    $('wx').innerHTML = '<svg viewBox="0 0 24 24">' + ICON[k[0]] + '</svg><div class="t">' + Math.round(c.temperature_2m) + '°</div>' +
+      '<div class="d"><b>' + k[1] + '</b> <span class="jp">' + k[2] + '</span> · ощущ. ' + Math.round(c.apparent_temperature) + '°<br>↑' + Math.round(hi) + '° ↓' + Math.round(lo) + '°' + sun + '</div>';
+    // tomorrow, for the night clock
+    if (dl.temperature_2m_max && dl.temperature_2m_max.length > 1) {
+      var t = WMO(dl.weather_code[1], true), p = dl.precipitation_probability_max ? dl.precipitation_probability_max[1] : null;
+      $('tmr').innerHTML = '<svg viewBox="0 0 24 24">' + ICON[t[0] === 'moon' ? 'sun' : t[0]] + '</svg><span>Завтра <b>' + t[1].toLowerCase() + ', ' + Math.round(dl.temperature_2m_max[1]) + '° / ' + Math.round(dl.temperature_2m_min[1]) + '°</b>' + (p != null ? ' · осадки ' + p + '%' : '') + '</span>';
+    }
+  }
+
+  // ---------------------------------------------------------------- open / close / switch
+  function launch() {
+    var d = pbNow(), want = focusLeft() > 0 ? 'day' : isNight(d) ? 'night' : 'day';
+    mode = want; frame = 0; waking = false;
+    $('day').className = 'mode day' + (mode === 'day' ? ' on' : ''); $('night').className = 'mode night' + (mode === 'night' ? ' on' : '');
+    act = mode === 'day' ? pickAct() : pickNight(); act.hold = 0; act._p = null; act._pr = null;
+    build(mode);
+    if (mode === 'day') apply(act.fr[0]);
+    clock(true); weather();
+    clearInterval(stepT); stepT = setInterval(step, mode === 'night' ? 1600 : act.ms);
+    clearTimeout(talkT); talkT = setTimeout(function loop() { talk(); talkT = setTimeout(loop, 26000 + Math.random() * 16000); }, mode === 'night' ? 5000 : 1800);
+  }
+  function stop() { clearInterval(stepT); clearTimeout(talkT); stepT = talkT = null; bubble.className = 'bubble'; }
+  // day <-> night while the screen is on: she yawns and falls asleep, or the alarm wakes her
+  function boundary() {
+    if (!vis || waking) return;
+    var want = focusLeft() > 0 ? 'day' : isNight(pbNow()) ? 'night' : 'day';
+    if (mode === 'day' && act && act.id === 'focus' && !focusLeft()) { show('Время! Перерыв. Ты… молодец. Немного.'); rig.mood('happy'); act.hold = 4; setTimeout(function () { if (vis) launch(); }, 6000); return; }
+    if (want === mode) return;
+    if (sfxText && mode === 'day') sfxText.style.display = 'none';
+    if (want === 'night') { rig.mood('yawn'); rig.pose('yawn'); act.hold = 5; show('Ф-фуа… уже ' + pbNow().getHours() + ' часов… Я н-не хочу спать… совсем…'); }
+    else { rig.mood('surprised'); rig.face({ fx: 'ex lines' }); show('ジリリリ! …Уже утро?! Хмф. Доброе… утро.', { shout: true }); }
+    var cur = $(mode); setTimeout(function () { cur.classList.add('fade'); setTimeout(function () { cur.classList.remove('fade'); if (vis) launch(); }, 900); }, 6500);
+  }
+  var lastOpen = 0;
+  try {
+    new IntersectionObserver(function (e) {
+      var v = e[e.length - 1].isIntersecting;
+      if (v === vis) return; vis = v;
+      if (v) { lastOpen = Date.now(); launch(); memLoad(function () { if (vis && Date.now() - lastOpen < 4000 && (focusLeft() > 0) !== (act.id === 'focus') ) launch(); }); }
+      else stop();
+    }).observe(document.documentElement);
+  } catch (e) { vis = true; launch(); }
+  document.addEventListener('visibilitychange', function () { if (!document.hidden && vis) clock(true); });
+  // a tap: she reacts, then «Главная». pointerdown, not click: the first touch must never feel ignored.
+  document.addEventListener('pointerdown', function () {
+    if (waking) { phonebox.goto('home'); return; }
+    waking = true;
+    if (mode === 'night') { rig.mood('flustered'); rig.face({ fx: 'sweat lines' }); show(r(WAKE), { shout: true, ms: 1500 }); }
+    else { rig.mood(r(['surprised', 'flustered', 'shy'])); show(r(STARTLE), { ms: 1500 }); }
+    setTimeout(function () { phonebox.goto('home'); }, 280);
+    setTimeout(function () { waking = false; }, 1500);
+  });
+  // burn-in care at night: the clock drifts a few pixels every minute
+  var drift = 0, SH = [[0, 0], [6, -4], [-6, 4], [4, 6], [-6, -3], [3, -6], [-3, 3]];
+  setInterval(function () { if (!vis) return; drift = (drift + 1) % SH.length; $('nclock').style.marginLeft = SH[drift][0] + 'px'; $('nclock').style.marginTop = SH[drift][1] + 'px'; }, 60000);
+  setInterval(function () { if (vis) clock(); }, 1000);
+  setInterval(boundary, 20000);
+  setInterval(function () { if (vis) memLoad(); }, 90000);
+  phonebox.on('weather', function () { weather(); });
+  memLoad();
+</script>

@@ -19,6 +19,10 @@
 //   /scroll?d=-3  /hscroll?d=2 wheel notches (negative = down / left), fractional values allowed
 //   /key?c=ctrl+shift+t        a key combination (modifiers: ctrl alt shift win)
 //   /type?s=text               types text as Unicode keystrokes (max 2000 chars); "\n" presses Enter
+//   /mem                       Tsuki's memory (affection, stats, focus timer) as JSON, "{}" when there is none yet
+//   /mem?set={...}             replaces it (one JSON object, at most 4096 chars). PhoneBox tiles run in sandboxed
+//                              iframes without localStorage, so this small file is the only memory that survives
+//                              a panel reload or a phone reboot; it is shared by the Главная tile and the idle screen.
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -243,6 +247,14 @@ static class ScreenServer
                     Send(stream, 204, null, null);
                     return;
                 }
+                case "/mem":
+                {
+                    var set = Param(query, "set");
+                    if (set == null) { Send(stream, 200, "application/json; charset=utf-8", Encoding.UTF8.GetBytes(ReadMemory())); return; }
+                    if (!WriteMemory(set)) { Send(stream, 400, "text/plain", Encoding.ASCII.GetBytes("expected one JSON object, max 4096 chars")); return; }
+                    Send(stream, 204, null, null);
+                    return;
+                }
                 default:
                     Send(stream, 404, "text/plain", Encoding.ASCII.GetBytes("not found"));
                     return;
@@ -250,6 +262,59 @@ static class ScreenServer
         }
         catch (Exception e) { Log("request: " + e.GetType().Name + ": " + e.Message); }
         finally { try { client.Close(); } catch { } }
+    }
+
+    // ---- Tsuki's memory ---------------------------------------------------------------------------------------------
+
+    const int MaxMemory = 4096;
+    static readonly object memoryGate = new object();
+    static string MemoryPath { get { return Path.Combine(dir, "tsuki-memory.json"); } }
+
+    static string ReadMemory()
+    {
+        lock (memoryGate)
+        {
+            try { if (File.Exists(MemoryPath)) { var s = File.ReadAllText(MemoryPath, Encoding.UTF8).Trim(); if (LooksLikeObject(s)) return s; } }
+            catch (Exception e) { Log("mem read: " + e.Message); }
+            return "{}";
+        }
+    }
+
+    // The tile owns the schema; the server only refuses what is obviously not one small JSON object, and writes through
+    // a temp file so a crash mid-write never leaves half a file behind.
+    static bool WriteMemory(string json)
+    {
+        json = json.Trim();
+        if (json.Length > MaxMemory || !LooksLikeObject(json)) return false;
+        lock (memoryGate)
+        {
+            try
+            {
+                var tmp = MemoryPath + ".tmp";
+                File.WriteAllText(tmp, json, new UTF8Encoding(false));
+                if (File.Exists(MemoryPath)) File.Replace(tmp, MemoryPath, null); else File.Move(tmp, MemoryPath);
+                return true;
+            }
+            catch (Exception e) { Log("mem write: " + e.Message); return false; }
+        }
+    }
+
+    // Balanced braces outside strings, starting with '{' and ending at the matching '}'. Not a full JSON parser (C# 5 on
+    // .NET Framework has none built in without extra references), but enough to keep junk out of the file.
+    static bool LooksLikeObject(string s)
+    {
+        if (s.Length < 2 || s[0] != '{' || s[s.Length - 1] != '}') return false;
+        int depth = 0; bool inStr = false, esc = false;
+        for (int i = 0; i < s.Length; i++)
+        {
+            char c = s[i];
+            if (inStr) { if (esc) esc = false; else if (c == '\\') esc = true; else if (c == '"') inStr = false; continue; }
+            if (c == '"') inStr = true;
+            else if (c == '{' || c == '[') depth++;
+            else if (c == '}' || c == ']') { depth--; if (depth < 0 || (depth == 0 && i != s.Length - 1)) return false; }
+            else if (c < ' ' && c != '\t' && c != '\r' && c != '\n') return false;
+        }
+        return depth == 0 && !inStr;
     }
 
     // ---- keyboard ---------------------------------------------------------------------------------------------------

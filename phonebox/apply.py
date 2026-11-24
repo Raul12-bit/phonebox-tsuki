@@ -1,7 +1,9 @@
 """Applies the personal black-and-white PhoneBox layout through the local agent API (http://127.0.0.1:8765).
 
-Run:  python -I -X utf8 phonebox/apply.py [--dry-run]
+Run:  python -I -X utf8 phonebox/apply.py [--dry-run | --preview]
 Safe to re-run: it rebuilds pages/shortcuts from this file and keeps every other setting as it is.
+--preview writes every tile, assembled exactly as the phone gets it but fed with sample data, to phonebox/preview/
+(open preview/index.html; add ?t=21:30 to a tile's URL to see it at another time of day). Needs no agent.
 A copy of the settings before the change is written to %LOCALAPPDATA%\\PhoneRemote\\settings.backup.json
 (not next to this script: it contains the Wi-Fi pairing key and this folder is synced by OneDrive).
 
@@ -20,6 +22,10 @@ AGENT = "http://127.0.0.1:8765"
 HERE = Path(__file__).resolve().parent
 SCREEN_BASE = "https://<laptop>.<tailnet>.ts.net"  # `tailscale serve` -> 127.0.0.1:8790 (tailnet devices only)
 SCREEN_KEY_FILE = Path(os.environ.get("LOCALAPPDATA", "")) / "PhoneRemote" / "key.txt"
+# The idle screen (the panel's home page after IDLE_AFTER_SEC without a touch): between NIGHT_FROM and NIGHT_TO Tsuki
+# sleeps under a night clock, the rest of the day she is busy with something (a different activity every time it opens).
+NIGHT_FROM, NIGHT_TO = "20:00", "07:00"
+IDLE_AFTER_SEC = 300
 # The agent only returns/accepts the full settings for same-origin requests from its own settings page.
 SAME_ORIGIN = {"Sec-Fetch-Site": "same-origin", "Sec-Fetch-Mode": "cors", "Sec-Fetch-Dest": "empty", "Origin": AGENT}
 
@@ -157,8 +163,13 @@ PERF_GUARD = """<style>html.pb-still *, html.pb-still *::before, html.pb-still *
 
 def tile(name: str, calm: int | None = None, page: str = "", **subst: str) -> str:
     """A tile's HTML with __KEY__ placeholders filled in; calm=None means no perf guard, 0 = only off-screen pausing.
-    page: the id of the page the tile sits on, for the idle keepalive (empty = no keepalive)."""
+    page: the id of the page the tile sits on, for the idle keepalive (empty = no keepalive).
+    __INCLUDE_TSUKI__ becomes the shared character rig (tiles/lib/tsuki.js): tiles are sandboxed srcdoc iframes and
+    cannot load a script file of their own."""
     text = (HERE / "tiles" / name).read_text(encoding="utf-8")
+    if "__INCLUDE_TSUKI__" in text:
+        rig = (HERE / "tiles" / "lib" / "tsuki.js").read_text(encoding="utf-8")
+        text = text.replace("__INCLUDE_TSUKI__", "<script>\n" + rig + "\n</script>")
     for k, v in {**subst, "PAGE": page}.items():
         text = text.replace(f"__{k}__", v)
     if calm is not None:
@@ -179,6 +190,8 @@ def html(id_, x, y, ww, hh, name, calm=None, page="", **subst):
 
 def build_pages(old: list[dict], screen_key: str) -> list[dict]:
     keep = {p["id"]: p for p in old}
+    mem = {"BASE": SCREEN_BASE if screen_key else "", "KEY": screen_key}  # Tsuki's memory lives on the screen server
+    night = {"NIGHT_FROM": NIGHT_FROM, "NIGHT_TO": NIGHT_TO}
     pages = [
         {"id": "remote", "title": "Пульт", "icon": "🖱️", "enabled": True, "widgets": [
             # music lives on «Главная» and «Музыка»; here only what a remote needs
@@ -193,8 +206,9 @@ def build_pages(old: list[dict], screen_key: str) -> list[dict]:
             html("screen", 0, 0, 12, 6, "screen.html", page="screen", BASE=SCREEN_BASE, KEY=screen_key),
         ]},
         {"id": "home", "title": "Главная", "icon": "🏠", "enabled": True, "widgets": [
-            html("tsuki", 0, 0, 4, 6, "mascot.html", calm=8, page="home"),
-            html("clock", 4, 0, 4, 4, "anime-clock.html", calm=0, page="home"),
+            # calm=0: Tsuki paces her own motion (stepped blinks, short reactions); the guard only pauses her off screen
+            html("tsuki", 0, 0, 4, 6, "mascot.html", calm=0, page="home", **mem),
+            html("clock", 4, 0, 4, 4, "anime-clock.html", calm=0, page="home", **night),
             w("media", "media", 8, 0, 4, 4),
             html("sys", 4, 4, 8, 2, "sys-strip.html", calm=0, page="home"),
         ]},
@@ -217,15 +231,126 @@ def build_pages(old: list[dict], screen_key: str) -> list[dict]:
     for pid, title in (("music", "Музыка"), ("procs", "Процессы")):  # stock pages, renamed
         if pid in keep:
             p = dict(keep[pid]); p["enabled"] = True; p["title"] = title; pages.append(p)
-    # night mode: Tsuki asleep, full screen. It is the panel's "home page", so 5 minutes without a touch and the
-    # Back key bring it up; it stays until touched (idleSec 0); a tap goes back to «Главная».
-    pages.append({"id": "night", "title": "Ночь", "icon": "🌙", "enabled": True, "idleSec": 0,
+    # The idle screen, full screen: a clock with Tsuki busy with something (day) or asleep (NIGHT_FROM..NIGHT_TO).
+    # It is the panel's "home page", so IDLE_AFTER_SEC without a touch and the Back key bring it up; it stays until
+    # touched (idleSec 0); a tap goes back to «Главная».
+    pages.append({"id": "idle", "title": "Заставка", "icon": "🌙", "enabled": True, "idleSec": 0,
                   "appearance": {"style": "borderless", "gap": 0, "padding": 0, "pagePadding": 0, "radius": 0,
                                  "border": False, "shadow": False},
-                  "widgets": [w("night", "html", 0, 0, 12, 6, html=tile("night.html", 0), transparent=True)]})
+                  "widgets": [w("idle", "html", 0, 0, 12, 6, html=tile("idle.html", 0, **mem, **night), transparent=True)]})
     # the phone opens on the home page (Tsuki + clock), the remote is one swipe away
     first = [p for p in pages if p["id"] == "home"]
     return first + [p for p in pages if p["id"] != "home"]
+
+
+# --- preview: every tile as a standalone page with sample data (python -X utf8 phonebox/apply.py --preview) ------------
+# The prelude mirrors the panel's own (window.phonebox with on/run/goto), feeds sample data instead of the agent's, and
+# lets ?t=HH:MM shift the clock (tiles read the time through pbNow()). The memory server is replaced by an in-page copy.
+PREVIEW_PRELUDE = """<!doctype html><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="color-scheme" content="dark"><style>:root{color-scheme:dark}html,body{margin:0;height:100%;background:transparent;color:#eef2f6;font-family:Roboto,"Segoe UI",system-ui,sans-serif;overflow:hidden}</style>
+<script>(function () {
+  var q = new URLSearchParams(location.search), t = q.get('t'), off = 0;
+  if (t && /^\\d{1,2}:\\d{2}$/.test(t)) { var n = new Date(), d = new Date(n); d.setHours(+t.split(':')[0], +t.split(':')[1], 0, 0); off = d - n; }
+  window.PB_PREVIEW = { offsetMs: off, mem: q.get('mem') ? JSON.parse(q.get('mem')) : null };
+  var subs = {}, data = __DATA__;
+  if (q.get('focus')) data.focus = +q.get('focus');
+  window.phonebox = { data: data,
+    on: function (k, f) { (subs[k] = subs[k] || []).push(f); if (data[k] !== undefined) setTimeout(function () { f(data[k]); }, 30); },
+    run: function (id) { console.log('[phonebox.run]', id); try { parent.postMessage({ pbPreview: 'run', id: id }, '*'); } catch (e) {} },
+    goto: function (p) { console.log('[phonebox.goto]', p); try { parent.postMessage({ pbPreview: 'goto', page: p }, '*'); } catch (e) {} } };
+  setInterval(function () { var s = data.state.pc; s.cpu = Math.max(3, Math.min(97, s.cpu + (Math.random() - .5) * 8)); (subs.state || []).forEach(function (f) { f(data.state); }); }, 1000);
+})();</script>
+"""
+PREVIEW_DATA = {
+    "state": {"pc": {"cpu": 14, "cpuName": "12th Gen Intel(R) Core(TM) i5-12450H", "ramUsedGb": 6.1, "ramTotalGb": 7.7,
+                     "gpu": {"util": 12, "temp": 46, "power": 7.4, "vramUsed": 0.4, "vramTotal": 4, "clock": 622},
+                     "netDownBps": 182000, "netUpBps": 24000, "uptimeSec": 190000,
+                     "disks": [{"name": "C:", "usedGb": 446, "totalGb": 476}]},
+              "media": {"app": "Spotify", "title": "Idol", "artist": "YOASOBI", "playing": True},
+              "ping": {"ms": 34, "lossPct": 0}},
+    "weather": {"current": {"temperature_2m": -3.4, "apparent_temperature": -8.1, "weather_code": 71, "is_day": 1},
+                "daily": {"weather_code": [71, 3], "temperature_2m_max": [-1, 2], "temperature_2m_min": [-9, -6],
+                          "precipitation_probability_max": [70, 10], "sunrise": ["2026-11-24T07:46", "2026-11-25T07:47"],
+                          "sunset": ["2026-11-24T17:13", "2026-11-25T17:12"]}},
+    "quotas": {"providers": [{"id": "claude", "plan": "Max", "updatedAt": None,
+                              "limits": [{"label": "5-hour session", "percent": 42, "windowSec": 18000},
+                                         {"label": "Weekly", "percent": 61, "windowSec": 604800}]}]},
+    "work": {"sessions": []},
+}
+PREVIEW_INDEX = """<!doctype html><meta charset="utf-8"><title>PhoneBox preview</title>
+<style>
+  body { margin: 0; padding: 28px; background: #141414; color: #ddd; font: 14px system-ui, sans-serif; }
+  h2 { font-weight: 500; margin: 26px 0 10px; color: #aaa; letter-spacing: .04em; }
+  .phone { position: relative; width: 820px; height: 360px; background: #000; border-radius: 26px; box-shadow: 0 0 0 10px #050505, 0 18px 40px #0008; overflow: hidden; }
+  .grid { position: absolute; inset: 12px; display: grid; grid-template-columns: repeat(12, 1fr); grid-template-rows: repeat(6, 1fr); gap: 10px; }
+  .card { border: 1px solid #2a2a2a; border-radius: 22px; overflow: hidden; background: #000; }
+  .card iframe, .full iframe { width: 100%; height: 100%; border: 0; display: block; }
+  .full { position: absolute; inset: 0; }
+  .row { display: flex; gap: 40px; flex-wrap: wrap; }
+  .log { margin-top: 18px; font: 12px ui-monospace, monospace; color: #8a8a8a; }
+</style>
+<h2>Главная</h2>
+<div class="phone"><div class="grid">
+  <div class="card" style="grid-area:1/1/7/5"><iframe src="mascot.html"></iframe></div>
+  <div class="card" style="grid-area:1/5/5/9"><iframe src="anime-clock.html"></iframe></div>
+  <div class="card" style="grid-area:1/9/5/13;display:grid;place-items:center;color:#555">media (native widget)</div>
+  <div class="card" style="grid-area:5/5/7/13"><iframe src="sys-strip.html"></iframe></div>
+</div></div>
+<h2>Заставка — день (каждая перезагрузка = новое занятие)</h2>
+<div class="row"><div class="phone"><div class="full"><iframe src="idle.html?t=10:24"></iframe></div></div>
+<div class="phone"><div class="full"><iframe src="idle.html?t=15:40"></iframe></div></div></div>
+<h2>Заставка — ночь (с __NIGHT_FROM__)</h2>
+<div class="row"><div class="phone"><div class="full"><iframe src="idle.html?t=23:12"></iframe></div></div>
+<div class="phone"><div class="full"><iframe src="idle.html?t=19:59"></iframe></div></div></div>
+<div class="log" id="log"></div>
+<script>addEventListener('message', function (e) { if (e.data && e.data.pbPreview) document.getElementById('log').textContent = new Date().toLocaleTimeString() + '  phonebox.' + e.data.pbPreview + '(' + (e.data.page || e.data.id) + ')'; });</script>
+"""
+
+
+RIG_GALLERY = """<!doctype html><meta charset="utf-8"><title>Tsuki rig</title>
+<style>
+  body { margin: 0; padding: 20px; background: #000; color: #9a9a9a; font: 12px system-ui, sans-serif; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fill, 150px); gap: 10px; margin-bottom: 26px; }
+  figure { margin: 0; border: 1px solid #222; border-radius: 12px; padding: 4px 4px 6px; text-align: center; }
+  svg { width: 100%; height: 170px; display: block; } .props svg { height: 90px; }
+</style>
+<h3>moods</h3><div class="grid" id="moods"></div><h3>poses</h3><div class="grid" id="poses"></div>
+<h3>props</h3><div class="grid props" id="props"></div>
+<script>__RIG__</script>
+<script>
+  function fig(parent, label, vb) {
+    var f = document.createElement('figure');
+    f.innerHTML = '<svg viewBox="' + (vb || '0 0 200 250') + '"><g></g></svg><figcaption>' + label + '</figcaption>';
+    parent.appendChild(f); return f.querySelector('g');
+  }
+  Object.keys(Tsuki.MOODS).forEach(function (m) { Tsuki.create(fig(moods, m), { mood: m }); });
+  Object.keys(Tsuki.POSES).forEach(function (p) { Tsuki.create(fig(poses, p), { pose: p }); });
+  Tsuki.create(fig(poses, 'pj + cap'), { outfit: 'pj', acc: 'cap', mood: 'sleep', pose: 'hold' });
+  Tsuki.create(fig(poses, 'glasses + phones'), { acc: 'glasses phones', mood: 'happy' });
+  Object.keys(Tsuki.PROPS).forEach(function (k) { var f = document.createElement('figure'); f.innerHTML = Tsuki.icon(k, '-40 -50 80 70') + '<figcaption>' + k + '</figcaption>'; props.appendChild(f); });
+</script>
+"""
+
+
+def write_preview() -> int:
+    out = HERE / "preview"
+    out.mkdir(exist_ok=True)
+    prelude = PREVIEW_PRELUDE.replace("__DATA__", json.dumps(PREVIEW_DATA, ensure_ascii=False))
+    mem = {"BASE": "", "KEY": ""}
+    night = {"NIGHT_FROM": NIGHT_FROM, "NIGHT_TO": NIGHT_TO}
+    tiles = {"mascot.html": (0, "home", {**mem}), "idle.html": (0, "", {**mem, **night}),
+             "anime-clock.html": (0, "home", night), "sys-strip.html": (0, "home", {}),
+             "claude-quota.html": (4, "claude", {}), "screen-button.html": (4, "remote", {}), "power.html": (0, "control", {})}
+    for name, (calm, page, subst) in tiles.items():
+        if not (HERE / "tiles" / name).exists():
+            continue
+        (out / name).write_text(prelude + tile(name, calm, page, **subst), encoding="utf-8")
+    (out / "index.html").write_text(PREVIEW_INDEX.replace("__NIGHT_FROM__", NIGHT_FROM), encoding="utf-8")
+    # every mood, pose and prop of the rig on one page, for drawing work
+    rig = (HERE / "tiles" / "lib" / "tsuki.js").read_text(encoding="utf-8")
+    (out / "rig.html").write_text(RIG_GALLERY.replace("__RIG__", rig), encoding="utf-8")
+    print("preview written:", out / "index.html")
+    return 0
 
 
 def request(method: str, path: str, body: bytes | None = None, headers: dict | None = None):
@@ -235,6 +360,8 @@ def request(method: str, path: str, body: bytes | None = None, headers: dict | N
 
 
 def main() -> int:
+    if "--preview" in sys.argv:
+        return write_preview()
     dry = "--dry-run" in sys.argv
     screen_key = SCREEN_KEY_FILE.read_text(encoding="ascii").strip() if SCREEN_KEY_FILE.exists() else ""
     if not screen_key:
@@ -253,7 +380,7 @@ def main() -> int:
     # touch (it only brightens), then the night page takes the second one, and that read as "the phone doesn't react".
     cfg["night"]["enabled"] = False
     d.update(nightWhenDark=False, idleDimMin=0)
-    d.update(language="ru", theme="amoled", accent=WHITE, artTint=False, homePage="night", idleReturnSec=300,
+    d.update(language="ru", theme="amoled", accent=WHITE, artTint=False, homePage="idle", idleReturnSec=IDLE_AFTER_SEC,
              pageBar="dots", showSeconds=True,
              homeScreen=True,  # PhoneBox is the phone's launcher: Home always comes back here
              # No screen pinning. While the app is not pinned, PhoneBox calls startLockTask() on every settings change and

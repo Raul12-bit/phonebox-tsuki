@@ -1,55 +1,62 @@
 <style>
   :root { --fg: #fff; --mut: #8c8c8c; }
-  body { position: relative; height: 100vh; box-sizing: border-box; padding: 6vh 7% 5vh; overflow: hidden; display: flex; flex-direction: column;
-         -webkit-font-smoothing: antialiased; }
-  /* manga screentone: a dot grid that fades out towards the top-left */
-  .tone { position: absolute; inset: 0; pointer-events: none;
-          background: radial-gradient(circle, #ffffff26 1.1px, transparent 1.4px) 0 0 / 7px 7px;
+  * { box-sizing: border-box; }
+  body { position: relative; height: 100vh; margin: 0; padding: 5.5vh 7% 5vh; overflow: hidden; display: flex; flex-direction: column;
+         -webkit-font-smoothing: antialiased; user-select: none; -webkit-user-select: none; -webkit-tap-highlight-color: transparent; }
+  .jp { font-family: "Noto Sans CJK JP", "Noto Sans JP", "Yu Gothic", sans-serif; }
+  /* manga screentone: a dot grid that fades out towards the top-left; a huge outlined weekday kanji behind */
+  .tone { position: absolute; inset: 0; pointer-events: none; background: radial-gradient(circle, #ffffff26 1.1px, transparent 1.4px) 0 0 / 7px 7px;
           -webkit-mask-image: radial-gradient(120% 100% at 100% 100%, #000 0%, transparent 62%); mask-image: radial-gradient(120% 100% at 100% 100%, #000 0%, transparent 62%); }
-  .kanji { position: absolute; right: -2%; bottom: -14%; font-size: 70vh; font-weight: 900; line-height: 1; color: transparent;
-           -webkit-text-stroke: 1.5px #ffffff22; pointer-events: none; font-family: "Noto Sans CJK JP", "Noto Sans JP", sans-serif; }
-  .tag { position: relative; display: flex; align-items: center; gap: .6em; font-size: 3.6vh; letter-spacing: .2em; color: var(--mut); }
-  .tag b { color: #fff; font-weight: 600; letter-spacing: .1em; padding: .1em .5em; border: 1px solid #ffffff55; border-radius: 4px; }
-  .time { position: relative; margin-top: 2vh; display: flex; align-items: flex-start; font-size: 30vh; font-weight: 200; line-height: .95;
-          font-variant-numeric: tabular-nums; letter-spacing: -.02em; }
-  .colon { margin: 0 .02em; } .colon.dim { opacity: .25; }
+  .kanji { position: absolute; right: -2%; bottom: -14%; font-size: 70vh; font-weight: 900; line-height: 1; color: transparent; -webkit-text-stroke: 1.5px #ffffff1f; pointer-events: none; }
+  .tag { position: relative; display: flex; align-items: center; gap: .6em; font-size: 3.5vh; letter-spacing: .2em; color: var(--mut); white-space: nowrap; }
+  .tag b { color: #000; background: #fff; font-weight: 700; letter-spacing: .08em; padding: .05em .45em; border-radius: 3px; }
+  .time { position: relative; margin-top: 1.6vh; display: flex; align-items: flex-start; font-size: 30vh; font-weight: 200; line-height: .95;
+          font-variant-numeric: tabular-nums; letter-spacing: -.03em; color: var(--fg); }
+  .colon { margin: 0 .01em; } .colon.dim { opacity: .25; }
   .sec { font-size: .2em; font-weight: 400; color: var(--mut); margin: .45em 0 0 .35em; letter-spacing: 0; }
-  .date { position: relative; margin-top: 1.8vh; font-size: 5.2vh; color: #e6e6e6; }
+  .date { position: relative; margin-top: 1.6vh; font-size: 5vh; color: #e6e6e6; white-space: nowrap; }
   .date span { color: var(--mut); margin-left: .5em; font-size: .85em; }
+  /* daylight: sunrise .. sunset with "now" on it */
+  .day { position: relative; margin-top: 2.6vh; display: none; align-items: center; gap: 3%; font-size: 2.9vh; color: var(--mut); font-variant-numeric: tabular-nums; }
+  .day.on { display: flex; }
+  .day .tr { position: relative; flex: 1; height: 2px; background: #2a2a2a; border-radius: 2px; }
+  .day .tr i { position: absolute; left: 0; top: 0; bottom: 0; background: #8a8a8a; border-radius: 2px; }
+  .day .tr b { position: absolute; top: 50%; width: 1.8vh; height: 1.8vh; margin: -.9vh 0 0 -.9vh; border-radius: 50%; background: #fff; }
+  .day .tr b.moon { background: #000; border: 1.4px solid #fff; }
   .wx { position: relative; margin-top: auto; display: flex; align-items: center; gap: 4%; }
-  .wx svg { width: 11vh; height: 11vh; flex: none; }
+  .wx svg { width: 10vh; height: 10vh; flex: none; }
   .wx svg * { fill: none; stroke: #fff; stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; }
-  .t { font-size: 10vh; font-weight: 300; }
-  .d { font-size: 3.9vh; line-height: 1.5; color: var(--mut); }
-  .d b { color: #fff; font-weight: 500; }
-  .claude { position: absolute; right: 7%; top: 6vh; font-size: 3.4vh; color: var(--mut); }
-  .claude b { color: #fff; font-weight: 500; }
-  .claude { top: auto !important; bottom: 5vh; }
-  .d { max-width: 52%; }
-  .sleep { position: absolute; right: 5%; top: 4.5vh; display: flex; align-items: center; gap: .5em; padding: 1.2vh 2.6vh; border: 1.4px solid #ffffff66;
-           border-radius: 99px; background: #000; color: #fff; font-size: 3.4vh; letter-spacing: .06em; cursor: pointer; -webkit-tap-highlight-color: transparent; }
-  .sleep:active { transform: scale(.94); background: #111; }
-  .sleep svg { width: 3.6vh; height: 3.6vh; } .sleep path { fill: none; stroke: #fff; stroke-width: 1.8; stroke-linejoin: round; }
+  .t { font-size: 9.5vh; font-weight: 300; }
+  .d { font-size: 3.7vh; line-height: 1.45; color: var(--mut); max-width: 50%; } .d b { color: #fff; font-weight: 500; }
+  .claude { position: absolute; right: 7%; bottom: 5vh; font-size: 3.3vh; color: var(--mut); } .claude b { color: #fff; font-weight: 500; }
+  .idle { position: absolute; right: 5%; top: 4.2vh; display: flex; align-items: center; gap: .5em; min-height: 6.4vh; padding: 0 2.6vh; border: 1.4px solid #ffffff66;
+          border-radius: 99px; background: #000; color: #fff; font-size: 3.3vh; letter-spacing: .06em; cursor: pointer; }
+  .idle:active { transform: scale(.94); background: #fff; color: #000; } .idle:active path { stroke: #000; }
+  .idle svg { width: 3.6vh; height: 3.6vh; } .idle path { fill: none; stroke: #fff; stroke-width: 1.8; stroke-linejoin: round; stroke-linecap: round; }
   body > * { animation: in .7s cubic-bezier(.2, .8, .2, 1) both; }
-  .time { animation-delay: .05s } .date { animation-delay: .1s } .wx { animation-delay: .15s }
+  .time { animation-delay: .05s } .date { animation-delay: .1s } .day { animation-delay: .12s } .wx { animation-delay: .15s }
   @keyframes in { from { opacity: 0; transform: translateY(8px) } to { opacity: 1; transform: none } }
-  @keyframes tick { 50% { opacity: .25 } }
   @media (prefers-reduced-motion: reduce) { body > * { animation: none } }
 </style>
 <div class="tone"></div>
-<div class="kanji" id="kanji">月</div>
-<div class="tag"><b>今日</b>СЕГОДНЯ</div>
+<div class="kanji jp" id="kanji">月</div>
+<div class="tag"><b class="jp">今日</b><span id="wd">СЕГОДНЯ</span></div>
 <div class="claude" id="claude"></div>
 <div class="time"><span id="hh">--</span><span class="colon">:</span><span id="mm">--</span><span class="sec" id="ss"></span></div>
 <div class="date" id="date"></div>
+<div class="day" id="day"><span id="rise"></span><span class="tr"><i id="dayFill"></i><b id="dayDot"></b></span><span id="set"></span></div>
 <div class="wx" id="wx"></div>
-<div class="sleep" id="sleep"><svg viewBox="0 0 24 24"><path d="M19 14.5A7.5 7.5 0 0 1 9.5 5a7.5 7.5 0 1 0 9.5 9.5z"/></svg><span class="jp" style="font-family:'Noto Sans CJK JP','Noto Sans JP',sans-serif">おやすみ</span></div>
+<div class="idle" id="idle" role="button" aria-label="Заставка"></div>
 <script>
-  // Manga-style clock: time, Russian + Japanese date, weather (Open-Meteo from the panel), Claude usage.
+  // Manga-style clock: time, Russian + Japanese date, today's daylight (sunrise .. sunset, from the panel's Open-Meteo
+  // forecast), weather, Claude usage, and a button to the idle screen (Tsuki busy by day, asleep from __NIGHT_FROM__).
   // Only text changes once a second; the screentone and the big kanji are static.
   var WD = ['日', '月', '火', '水', '木', '金', '土'];
   var RU = ['воскресенье', 'понедельник', 'вторник', 'среда', 'четверг', 'пятница', 'суббота'];
   var MON = ['января', 'февраля', 'марта', 'апреля', 'мая', 'июня', 'июля', 'августа', 'сентября', 'октября', 'ноября', 'декабря'];
+  var NIGHT_FROM = hm('__NIGHT_FROM__', 1200), NIGHT_TO = hm('__NIGHT_TO__', 420);
+  function hm(s, def) { var m = /^(\d{1,2}):(\d{2})$/.exec(s); return m ? +m[1] * 60 + +m[2] : def; }
+  function pbNow() { return new Date(Date.now() + ((window.PB_PREVIEW || {}).offsetMs || 0)); }
   var ICON = {
     sun: '<circle cx="12" cy="12" r="4"/><path d="M12 2.5v2M12 19.5v2M2.5 12h2M19.5 12h2M5.3 5.3l1.4 1.4M17.3 17.3l1.4 1.4M5.3 18.7l1.4-1.4M17.3 6.7l1.4-1.4"/>',
     moon: '<path d="M19 14.5A7.5 7.5 0 0 1 9.5 5a7.5 7.5 0 1 0 9.5 9.5z"/>',
@@ -57,7 +64,8 @@
     rain: '<path d="M7 15h10a4 4 0 0 0 .6-7.95A6 6 0 0 0 6.1 7.5 3.75 3.75 0 0 0 7 15z"/><path d="M9 18l-1 2.5M13 18l-1 2.5M17 18l-1 2.5"/>',
     snow: '<path d="M7 15h10a4 4 0 0 0 .6-7.95A6 6 0 0 0 6.1 7.5 3.75 3.75 0 0 0 7 15z"/><path d="M9 19h.01M12 21h.01M15 19h.01"/>',
     storm: '<path d="M7 15h10a4 4 0 0 0 .6-7.95A6 6 0 0 0 6.1 7.5 3.75 3.75 0 0 0 7 15z"/><path d="M12.5 15.5l-2 3h3l-2 3"/>',
-    fog: '<path d="M4 9h16M6 13h12M4 17h16"/>'
+    fog: '<path d="M4 9h16M6 13h12M4 17h16"/>',
+    spark: '<path d="M12 3l1.8 5.2L19 10l-5.2 1.8L12 17l-1.8-5.2L5 10l5.2-1.8z"/><path d="M19 16l.7 1.8 1.8.7-1.8.7-.7 1.8-.7-1.8-1.8-.7 1.8-.7z"/>'
   };
   function wmo(c, day) {
     if (c === 0) return [day ? 'sun' : 'moon', 'Ясно', '晴れ'];
@@ -72,24 +80,39 @@
   }
   var el = function (id) { return document.getElementById(id); };
   function pad(n) { return n < 10 ? '0' + n : '' + n; }
+  var sun = null, lastMin = -1;
   function tick() {
-    var d = new Date();
-    el('hh').textContent = pad(d.getHours()); el('mm').textContent = pad(d.getMinutes()); el('ss').textContent = pad(d.getSeconds());
-    document.querySelectorAll('.colon').forEach(function (c) { c.classList.toggle('dim', d.getSeconds() % 2 === 1); }); // blinks with the second tick: no extra frames
-    el('date').innerHTML = RU[d.getDay()] + ', ' + d.getDate() + ' ' + MON[d.getMonth()] + '<span>' + WD[d.getDay()] + '曜日</span>';
+    var d = pbNow(), m = d.getHours() * 60 + d.getMinutes();
+    el('ss').textContent = pad(d.getSeconds());
+    el('hh').parentNode.children[1].classList.toggle('dim', d.getSeconds() % 2 === 1);  // blinks with the second tick: no extra frames
+    if (m === lastMin) return;
+    lastMin = m;
+    el('hh').textContent = pad(d.getHours()); el('mm').textContent = pad(d.getMinutes());
+    el('wd').textContent = RU[d.getDay()].toUpperCase();
+    el('date').innerHTML = d.getDate() + ' ' + MON[d.getMonth()] + '<span class="jp">' + WD[d.getDay()] + '曜日</span>';
     if (el('kanji').textContent !== WD[d.getDay()]) el('kanji').textContent = WD[d.getDay()];
+    var night = NIGHT_FROM > NIGHT_TO ? (m >= NIGHT_FROM || m < NIGHT_TO) : (m >= NIGHT_FROM && m < NIGHT_TO);
+    el('idle').innerHTML = night ? '<svg viewBox="0 0 24 24">' + ICON.moon + '</svg><span class="jp">おやすみ</span>' : '<svg viewBox="0 0 24 24">' + ICON.spark + '</svg><span>заставка</span>';
+    if (sun) {
+      var f = Math.max(0, Math.min(1, (m - sun[0]) / (sun[1] - sun[0])));
+      el('dayFill').style.width = (f * 100).toFixed(1) + '%'; el('dayDot').style.left = (f * 100).toFixed(1) + '%';
+      el('dayDot').className = m < sun[0] || m > sun[1] ? 'moon' : '';
+    }
   }
   phonebox.on('weather', function (w) {
     if (!w || !w.current) { el('wx').innerHTML = '<div class="d">Погода недоступна</div>'; return; }
     var c = w.current, k = wmo(c.weather_code, c.is_day !== 0), dl = w.daily || {};
     var hi = dl.temperature_2m_max && dl.temperature_2m_max[0], lo = dl.temperature_2m_min && dl.temperature_2m_min[0];
     el('wx').innerHTML = '<svg viewBox="0 0 24 24">' + ICON[k[0]] + '</svg><div class="t">' + Math.round(c.temperature_2m) + '°</div>' +
-      '<div class="d"><b>' + k[1] + '</b> · ' + k[2] + ' · Алматы<br>↑' + Math.round(hi) + '° ↓' + Math.round(lo) + '° · ощущается ' + Math.round(c.apparent_temperature) + '°</div>';
+      '<div class="d"><b>' + k[1] + '</b> · <span class="jp">' + k[2] + '</span><br>↑' + Math.round(hi) + '° ↓' + Math.round(lo) + '° · ощущ. ' + Math.round(c.apparent_temperature) + '°</div>';
+    var t = function (s) { var x = /T(\d\d):(\d\d)/.exec(s || ''); return x ? [+x[1] * 60 + +x[2], x[1] + ':' + x[2]] : null; };
+    var a = dl.sunrise && t(dl.sunrise[0]), b = dl.sunset && t(dl.sunset[0]);
+    if (a && b) { sun = [a[0], b[0]]; el('rise').textContent = a[1]; el('set').textContent = b[1]; el('day').classList.add('on'); lastMin = -1; tick(); }
   });
   phonebox.on('quotas', function (q) {
     var p = q && (q.providers || []).filter(function (x) { return x.id === 'claude'; })[0], l = p && (p.limits || [])[0];
     el('claude').innerHTML = l ? 'Claude <b>' + Math.round(l.percent) + '%</b>' : '';
   });
-  el('sleep').addEventListener('click', function () { phonebox.goto('night'); });  // night mode on demand
+  el('idle').addEventListener('click', function () { phonebox.goto('idle'); });
   tick(); setInterval(tick, 1000);
 </script>

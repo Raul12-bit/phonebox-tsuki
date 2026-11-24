@@ -9,3 +9,6 @@ phonebox/preview/
 key.txt
 settings.backup.json
 *.log
+
+# local Claude Code config (preview server launcher)
+.claude/
